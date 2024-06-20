@@ -20,4 +20,5 @@ func HandleRedis(relayNotesJSON []byte, relayUrl string) error {
 		fmt.Println("Error setting relays data to redis: ", err)
 		return err
 	}
+	return nil
 }
