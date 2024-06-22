@@ -22,7 +22,7 @@ func generateRandomString(length int) (string, error) {
 	return hex.EncodeToString(bytes), nil
 }
 
-func handleRelayConnection(conn *websocket.Conn, relayUrl string, finished <-chan string) {
+func handleRelayConnection(conn *websocket.Conn, relayUrl string, finished chan<- string) {
 
 	subscriptionID, err := generateRandomString(16)
 	if err != nil {
@@ -74,7 +74,7 @@ func handleRelayConnection(conn *websocket.Conn, relayUrl string, finished <-cha
 					log.Fatal("Error marshalling the batched relay data: ", err)
 				}
 
-				redis.HandleRedis(batchJSON, relayUrl)
+				redis.HandleRedis(batchJSON, relayUrl, finished)
 			}
 		}
 

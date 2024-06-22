@@ -7,7 +7,7 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-func HandleRedis(relayNotesJSON []byte, relayUrl string, finished <-chan string) error {
+func HandleRedis(relayNotesJSON []byte, relayUrl string, finished chan<- string) error {
 	client := redis.NewClient(&redis.Options{
 		Addr:     "localhost:6379",
 		Password: "",
@@ -20,5 +20,6 @@ func HandleRedis(relayNotesJSON []byte, relayUrl string, finished <-chan string)
 		fmt.Println("Error setting relays data to redis: ", err)
 		return err
 	}
+	finished <- relayUrl
 	return nil
 }

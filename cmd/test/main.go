@@ -1,7 +1,11 @@
 package main
 
 import (
+	"fmt"
+	"os"
+	"os/signal"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/DerekBelloni/go-socket-server/internal/relay"
@@ -28,30 +32,39 @@ func main() {
 		wg.Add(1)
 		go func(relayUrl string) {
 			defer wg.Done()
+			relay.ConnectToRelay(relayUrl, finished)
 			for {
 				select {
-					case <-ticker.C: 
-						relay.ConnectToRelay(relayUrl, finished)
-						return
-					case <-done:
-						return
+				case <-ticker.C:
+					relay.ConnectToRelay(relayUrl, finished)
+					return
+				case <-done:
+					return
 				}
 			}
-		// Allows calling the anon function with the current iteration in relayUrls
-		// Each GO routine has its own copy
+			// Allows calling the anon function with the current iteration in relayUrls
+			// Each GO routine has its own copy
 		}(relayUrl)
 	}
 
 	// Listen for OS signals to gracefully shutdown
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
-	
+
 	go func() {
 		// Block until a signal is received
 		<-sig
-		// signal to close the 'd
+		// signal to close the all go routines created in the loop
 		close(done)
+		// wait for go routines to finish
 		wg.Wait()
+		// close the wait group
 		wg.Done()
+		// exit the program
+		os.Exit(0)
+	}()
+
+	for url := range finished {
+		fmt.Printf("Finished processing for relay: %s\n", url)
 	}
 }
