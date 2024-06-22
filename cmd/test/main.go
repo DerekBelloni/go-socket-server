@@ -49,8 +49,9 @@ func main() {
 	go func() {
 		// Block until a signal is received
 		<-sig
-		// close the 'done' channel
+		// signal to close the 'd
 		close(done)
+		wg.Wait()
 		wg.Done()
 	}
 }
