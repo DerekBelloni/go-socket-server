@@ -7,7 +7,7 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-func ConnectToRelay(relayUrl string) {
+func ConnectToRelay(relayUrl string, finished <-chan string) {
 	fmt.Printf("landing in the connection.go file: %s\n", relayUrl)
 
 	conn, _, err := websocket.DefaultDialer.Dial(relayUrl, nil)
@@ -16,5 +16,5 @@ func ConnectToRelay(relayUrl string) {
 	}
 	defer conn.Close()
 
-	handleRelayConnection(conn, relayUrl)
+	handleRelayConnection(conn, relayUrl, finished)
 }

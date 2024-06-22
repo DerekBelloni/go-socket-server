@@ -22,7 +22,7 @@ func generateRandomString(length int) (string, error) {
 	return hex.EncodeToString(bytes), nil
 }
 
-func handleRelayConnection(conn *websocket.Conn, relayUrl string) {
+func handleRelayConnection(conn *websocket.Conn, relayUrl string, finished <-chan string) {
 
 	subscriptionID, err := generateRandomString(16)
 	if err != nil {
