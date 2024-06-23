@@ -13,7 +13,7 @@ func HandleRedis(relayNotesJSON []byte, relayUrl string, finished chan<- string)
 		Password: "",
 		DB:       0,
 	})
-	fmt.Printf("relay url string: %s\n", relayUrl)
+
 	ctx := context.Background()
 	err := client.Set(ctx, relayUrl, relayNotesJSON, 0).Err()
 	if err != nil {

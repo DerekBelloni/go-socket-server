@@ -35,9 +35,10 @@ func handleRelayConnection(conn *websocket.Conn, relayUrl string, finished chan<
 		"REQ",
 		subscriptionID,
 		map[string]interface{}{
-			"kinds": []int{1},
+			"kinds": []int{0, 1},
 			"since": start.Add(-1 * time.Hour).Unix(),
 			"until": time.Now().Unix(),
+			"limit": 500,
 		},
 	}
 
