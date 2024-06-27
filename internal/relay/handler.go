@@ -67,7 +67,7 @@ func handleRelayConnection(conn *websocket.Conn, relayUrl string, finished chan<
 		if err := json.Unmarshal(message, &rMessage); err != nil {
 			fmt.Println("Error unmarshalling JSON: ", err)
 		}
-		fmt.Printf("unmarshalled message: %s", rMessage...)
+
 		if len(rMessage) > 0 {
 			if firstElement, ok := rMessage[0].(string); ok && firstElement == "EOSE" {
 				batchJSON, err := json.Marshal(batch)

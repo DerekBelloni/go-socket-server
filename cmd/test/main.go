@@ -15,6 +15,7 @@ func main() {
 	relayUrls := []string{
 		"wss://relay.damus.io",
 		"wss://nos.lol",
+		"wss://purplerelay.com",
 	}
 
 	finished := make(chan string)
@@ -32,6 +33,7 @@ func main() {
 			for {
 				select {
 				case <-ticker.C:
+					fmt.Println("timer worked!")
 					relay.ConnectToRelay(relayUrl, finished)
 					return
 				case <-done:
