@@ -10,6 +10,7 @@ import (
 
 	"github.com/DerekBelloni/go-socket-server/internal/redis"
 	"github.com/gorilla/websocket"
+	"github.com/sirupsen/logrus"
 )
 
 func generateRandomString(length int) (string, error) {
@@ -56,11 +57,17 @@ func handleRelayConnection(conn *websocket.Conn, relayUrl string, finished chan<
 
 	var batch []json.RawMessage
 
+	var log = logrus.New()
+
 	for {
 		_, message, err := conn.ReadMessage()
 		if err != nil {
-			log.Println("Read error: ", err)
-			break
+			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
+				log.WithFields(logrus.Fields{
+					"error": err,
+				}).Error("WebSocket Error")
+				break
+			}
 		}
 
 		var rMessage []interface{}

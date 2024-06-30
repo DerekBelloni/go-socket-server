@@ -16,6 +16,7 @@ func main() {
 		"wss://relay.damus.io",
 		"wss://nos.lol",
 		"wss://purplerelay.com",
+		"wss://relay.primal.net",
 	}
 
 	finished := make(chan string)
