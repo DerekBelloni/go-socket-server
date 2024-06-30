@@ -24,6 +24,7 @@ func generateRandomString(length int) (string, error) {
 }
 
 func handleRelayConnection(conn *websocket.Conn, relayUrl string, finished chan<- string) {
+	defer conn.Close()
 
 	subscriptionID, err := generateRandomString(16)
 	if err != nil {
@@ -37,7 +38,7 @@ func handleRelayConnection(conn *websocket.Conn, relayUrl string, finished chan<
 		subscriptionID,
 		map[string]interface{}{
 			"kinds": []int{0, 1},
-			"since": start.Add(-24 * time.Hour).Unix(),
+			"since": start.Add(-1 * time.Hour).Unix(),
 			"until": time.Now().Unix(),
 			"limit": 500,
 		},
@@ -68,11 +69,24 @@ func handleRelayConnection(conn *websocket.Conn, relayUrl string, finished chan<
 				}).Error("WebSocket Error")
 				break
 			}
+			log.WithFields(logrus.Fields{
+				"error": err,
+			}).Error("WebSocket read error")
+			break
+		}
+
+		if len(message) == 0 {
+			log.Warn("Received an empty message")
+			continue
 		}
 
 		var rMessage []interface{}
 		if err := json.Unmarshal(message, &rMessage); err != nil {
-			fmt.Println("Error unmarshalling JSON: ", err)
+			log.WithFields(logrus.Fields{
+				"error":   err,
+				"message": string(message),
+			}).Error("Error unmarshalling JSON")
+			continue
 		}
 
 		if len(rMessage) > 0 {
@@ -83,6 +97,7 @@ func handleRelayConnection(conn *websocket.Conn, relayUrl string, finished chan<
 				}
 
 				redis.HandleRedis(batchJSON, relayUrl, finished)
+				break
 			}
 		}
 

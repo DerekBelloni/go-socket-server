@@ -51,11 +51,14 @@ func main() {
 		<-sig
 		close(done)
 		wg.Wait()
-		wg.Done()
+		// wg.Done()
 		os.Exit(0)
 	}()
 
 	for url := range finished {
 		fmt.Printf("Finished processing for relay: %s\n", url)
+		wg.Done()
 	}
+
+	wg.Wait()
 }
