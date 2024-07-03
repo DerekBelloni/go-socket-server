@@ -35,6 +35,7 @@ func main() {
 				select {
 				case <-ticker.C:
 					fmt.Println("timer worked!")
+					wg.Add(1)
 					relay.ConnectToRelay(relayUrl, finished)
 					return
 				case <-done:
@@ -51,7 +52,6 @@ func main() {
 		<-sig
 		close(done)
 		wg.Wait()
-		// wg.Done()
 		os.Exit(0)
 	}()
 

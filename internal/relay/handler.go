@@ -37,10 +37,10 @@ func handleRelayConnection(conn *websocket.Conn, relayUrl string, finished chan<
 		"REQ",
 		subscriptionID,
 		map[string]interface{}{
-			"kinds": []int{0, 1},
-			"since": start.Add(-1 * time.Hour).Unix(),
+			"kinds": []int{0, 1, 7},
+			"since": start.Add(-24 * time.Hour).Unix(),
 			"until": time.Now().Unix(),
-			"limit": 500,
+			"limit": 2000,
 		},
 	}
 
@@ -89,7 +89,20 @@ func handleRelayConnection(conn *websocket.Conn, relayUrl string, finished chan<
 			continue
 		}
 
-		if len(rMessage) > 0 {
+		if len(rMessage) >= 3 {
+			fmt.Println("Dumping rMessage structure:")
+
+			if eventMap, ok := rMessage[2].(map[string]interface{}); ok {
+				if kind, ok := eventMap["kind"].(float64); ok && int(kind) == 7 {
+					if content, ok := eventMap["content"].(string); ok && string(content) != "-" {
+						// spew.Dump(rMessage[2])
+						fmt.Println(rMessage[2])
+					}
+				}
+			} else {
+				fmt.Println("rMessage[2] is not a map or is missing")
+			}
+
 			if firstElement, ok := rMessage[0].(string); ok && firstElement == "EOSE" {
 				batchJSON, err := json.Marshal(batch)
 				if err != nil {
@@ -103,4 +116,8 @@ func handleRelayConnection(conn *websocket.Conn, relayUrl string, finished chan<
 
 		batch = append(batch, message)
 	}
+
+	// func retrieveReactionEvents(batch ) {
+
+	// }
 }

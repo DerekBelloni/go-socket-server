@@ -8,6 +8,7 @@ import (
 )
 
 func HandleRedis(relayNotesJSON []byte, relayUrl string, finished chan<- string) error {
+	fmt.Println("in redis")
 	client := redis.NewClient(&redis.Options{
 		Addr:     "localhost:6379",
 		Password: "",
