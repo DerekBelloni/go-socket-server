@@ -15,7 +15,7 @@ func main() {
 	relayUrls := []string{
 		"wss://relay.damus.io",
 		"wss://nos.lol",
-		"wss://purplerelay.com",
+		// "wss://purplerelay.com",
 		"wss://relay.primal.net",
 	}
 
@@ -36,8 +36,10 @@ func main() {
 				case <-ticker.C:
 					fmt.Println("timer worked!")
 					wg.Add(1)
-					relay.ConnectToRelay(relayUrl, finished)
-					return
+					go func() {
+						defer wg.Done()
+						relay.ConnectToRelay(relayUrl, finished)
+					}()
 				case <-done:
 					return
 				}
@@ -57,8 +59,9 @@ func main() {
 
 	for url := range finished {
 		fmt.Printf("Finished processing for relay: %s\n", url)
-		wg.Done()
+		// wg.Done()
 	}
 
 	wg.Wait()
+	relay.SplitReactionEvents()
 }

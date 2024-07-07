@@ -6,12 +6,30 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"strings"
+	"sync"
 	"time"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/gorilla/websocket"
 	"github.com/sirupsen/logrus"
 )
+
+const maxTrendingIds = 25
+
+var (
+	mutex       sync.Mutex
+	tempIds     map[string]string
+	trendingIds map[string]string
+	damusRelay  []string
+	purpleRelay []string
+	nosRelay    []string
+	primalRelay []string
+)
+
+func init() {
+	tempIds = make(map[string]string)
+	trendingIds = make(map[string]string)
+}
 
 func generateRandomString(length int) (string, error) {
 	bytes := make([]byte, length)
@@ -123,8 +141,10 @@ func handleRelayConnection(conn *websocket.Conn, relayUrl string, finished chan<
 	}
 }
 
-func isRootTag(tag []interface{}) (bool, string) {
-	if len(tag) < 4 {
+func extractETag(tag []interface{}) (bool, string) {
+	fmt.Println("Checking tag:", tag) // Debug output
+
+	if len(tag) < 2 {
 		return false, ""
 	}
 
@@ -138,83 +158,117 @@ func isRootTag(tag []interface{}) (bool, string) {
 		return false, ""
 	}
 
-	relation, ok := tag[3].(string)
-	if !ok || relation != "root" {
-		return false, ""
-	}
-
 	return true, eventID
 }
 
-func processEvent(event []interface{}) []string {
-	var eventIDs []string
-
-	// type assert the tagArray, if ok then set the isRoot, eventId by calling to isRootTag method
-	for _, tag := range event {
+func processEvent(eventArray []interface{}, relayUrl string) {
+	mutex.Lock()
+	defer mutex.Unlock()
+	for _, tag := range eventArray {
 		tagArray, ok := tag.([]interface{})
 		if !ok {
+			fmt.Println("Skipping non-array tag:", tag) // Debug output
 			continue
 		}
-		if isRoot, eventID := isRootTag(tagArray); isRoot {
-			// spew.Dump("event id: ", eventID)
-			eventIDs = append(eventIDs, eventID)
+		if isE, eventID := extractETag(tagArray); isE {
+			eventID = strings.TrimSpace(eventID)
+			if eventID != "" {
+				// fmt.Println("Valid eventID found:", eventID, "from relay:", relayUrl) // Debug output
+				tempIds[eventID] = relayUrl
+			} else {
+				fmt.Println("Empty or whitespace eventID ignored, original eventID:", eventID) // Debug output
+			}
+		} else {
+			fmt.Println("Not an 'e' tag or invalid eventID, tagArray:", tagArray) // Debug output
 		}
 	}
-	// spew.Dump("Event ids: ", eventIDs)
-	return eventIDs
+}
+
+func SplitReactionEvents() {
+	mutex.Lock()
+	defer mutex.Unlock()
+
+	for eventID, relay := range trendingIds {
+		switch r := relay; r {
+		case "wss://relay.damus.io":
+			damusRelay = append(damusRelay, eventID)
+		case "wss://nos.lol":
+			nosRelay = append(nosRelay, eventID)
+		case "wss://purplerelay.com":
+			purpleRelay = append(purpleRelay, eventID)
+		case "wss://relay.primal.net":
+			primalRelay = append(primalRelay, eventID)
+		}
+	}
+
+	fmt.Println("primal relay: ", primalRelay)
 }
 
 func retrieveReactionEvents(reactionEvents []interface{}, relayUrl string, finished chan<- string) {
-	trendingEventIDs := make([]string, 0)
+	fmt.Println("Starting retrieveReactionEvents for:", relayUrl)
+	defer func() {
+		fmt.Println("Finished retrieveReactionEvents for:", relayUrl) // Debug end
+		finished <- relayUrl                                          // Signal that this relay has finished processing
+	}()
 
 	for _, event := range reactionEvents {
 		if eventArray, ok := event.([]interface{}); ok {
-			eventIDs := processEvent(eventArray)
-			spew.Dump(eventIDs)
-			for _, id := range eventIDs {
-				if id != "" {
-					trendingEventIDs = append(trendingEventIDs, id)
-				}
-			}
+			processEvent(eventArray, relayUrl)
+		} else {
+			fmt.Println("Invalid eventArray type:", event) // Debug output
 		}
 	}
 
-	fmt.Printf("Trending event IDs for %s: %d\n", relayUrl, len(trendingEventIDs))
+	mutex.Lock()
+	// fmt.Println("tempIds after processing:", tempIds) // Debug output
 
-	if len(trendingEventIDs) == 0 {
-		fmt.Println("No trending event IDs found for", relayUrl)
-		return
+	for eventID, url := range tempIds {
+		eventID = strings.TrimSpace(eventID)
+		if eventID != "" {
+			if len(trendingIds) < maxTrendingIds {
+				trendingIds[eventID] = url
+			} else {
+				fmt.Println("Reached max limit of trendingIds")
+				finished <- relayUrl
+				break
+			}
+		} else {
+			fmt.Println("Empty or whitespace eventID in tempIds:", eventID) // Debug output
+		}
 	}
+	mutex.Unlock()
 
-	conn, _, err := websocket.DefaultDialer.Dial(relayUrl, nil)
-	if err != nil {
-		log.Fatal("Dial error")
-	}
+	// finished <- relayUrl
 
-	defer conn.Close()
+	// conn, _, err := websocket.DefaultDialer.Dial(relayUrl, nil)
+	// if err != nil {
+	// 	log.Fatal("Dial error")
+	// }
 
-	subscriptionID, err := generateRandomString(16)
-	if err != nil {
-		log.Fatal("Error generating a subscription id: ", err)
-	}
+	// defer conn.Close()
 
-	subscriptionRequest := []interface{}{
-		"REQ",
-		subscriptionID,
-		map[string]interface{}{
-			"ids": trendingEventIDs,
-		},
-	}
+	// subscriptionID, err := generateRandomString(16)
+	// if err != nil {
+	// 	log.Fatal("Error generating a subscription id: ", err)
+	// }
 
-	subscriptionRequestJSON, err := json.Marshal(subscriptionRequest)
-	if err != nil {
-		log.Fatal("Error marshalling subscription request for trending events: ", err)
-	}
+	// subscriptionRequest := []interface{}{
+	// 	"REQ",
+	// 	subscriptionID,
+	// 	map[string]interface{}{
+	// 		"ids": trendingIds,
+	// 	},
+	// }
 
-	err = conn.WriteMessage(websocket.TextMessage, subscriptionRequestJSON)
-	if err != nil {
-		log.Fatal("Error sending subscription request for trending events: ", err)
-	}
+	// subscriptionRequestJSON, err := json.Marshal(subscriptionRequest)
+	// if err != nil {
+	// 	log.Fatal("Error marshalling subscription request for trending events: ", err)
+	// }
+
+	// err = conn.WriteMessage(websocket.TextMessage, subscriptionRequestJSON)
+	// if err != nil {
+	// 	log.Fatal("Error sending subscription request for trending events: ", err)
+	// }
 
 	// fmt.Println("Subscription request sent")
 
