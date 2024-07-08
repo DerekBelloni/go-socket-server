@@ -61,5 +61,4 @@ func main() {
 	}
 
 	wg.Wait()
-	// relay.SplitReactionEvents()
 }
