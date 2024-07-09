@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/DerekBelloni/go-socket-server/internal/redis"
+	"github.com/davecgh/go-spew/spew"
 	"github.com/gorilla/websocket"
 	"github.com/sirupsen/logrus"
 )
@@ -31,6 +32,7 @@ func generateRandomString(length int) (string, error) {
 	return hex.EncodeToString(bytes), nil
 }
 
+// I think I can pass in the filters I want depending on where it is being called from (reactions vs default events, etc)
 func createSubscriptionRequest() []interface{} {
 	subscriptionID, err := generateRandomString(16)
 	if err != nil {
@@ -51,25 +53,9 @@ func createSubscriptionRequest() []interface{} {
 	return subscriptionRequest
 }
 
+// I can probably hand in a connection type here as well
 func handleRelayConnection(conn *websocket.Conn, relayUrl string, finished chan<- string) {
 	defer conn.Close()
-
-	// subscriptionID, err := generateRandomString(16)
-	// if err != nil {
-	// 	log.Fatal("Error generating a subscription id: ", err)
-	// }
-
-	// start := time.Now()
-	// subscriptionRequest := []interface{}{
-	// 	"REQ",
-	// 	subscriptionID,
-	// 	map[string]interface{}{
-	// 		"kinds": []int{0, 1, 7},
-	// 		"since": start.Add(-24 * time.Hour).Unix(),
-	// 		"until": time.Now().Unix(),
-	// 		"limit": 100,
-	// 	},
-	// }
 
 	subscriptionRequest := createSubscriptionRequest()
 
@@ -149,7 +135,7 @@ func handleRelayConnection(conn *websocket.Conn, relayUrl string, finished chan<
 		}
 
 		batch = append(batch, message)
-		shouldContinue := retrieveReactionEvents(reactionEvents, relayUrl, finished)
+		shouldContinue := parseReactionEvents(reactionEvents, relayUrl, finished)
 		if !shouldContinue {
 			log.WithFields(logrus.Fields{
 				"relay": relayUrl,
@@ -157,6 +143,7 @@ func handleRelayConnection(conn *websocket.Conn, relayUrl string, finished chan<
 			break
 		}
 	}
+	retrieveReactionEvents()
 }
 
 func extractETag(tag []interface{}) (bool, string) {
@@ -215,7 +202,7 @@ func processEvent(eventArray []interface{}, relayUrl string, finished chan<- str
 	return true
 }
 
-func retrieveReactionEvents(reactionEvents []interface{}, relayUrl string, finished chan<- string) bool {
+func parseReactionEvents(reactionEvents []interface{}, relayUrl string, finished chan<- string) bool {
 	for _, event := range reactionEvents {
 		if eventArray, ok := event.([]interface{}); ok {
 			shouldContinue := processEvent(eventArray, relayUrl, finished)
@@ -225,4 +212,69 @@ func retrieveReactionEvents(reactionEvents []interface{}, relayUrl string, finis
 		}
 	}
 	return true
+}
+
+func retrieveReactionEvents() {
+	conn, _, err := websocket.DefaultDialer.Dial("wss://relay.damus.io", nil)
+	if err != nil {
+		log.Fatal("Dial error: ", err)
+	}
+
+	defer conn.Close()
+
+	subscriptionID, err := generateRandomString(16)
+	if err != nil {
+		log.Fatal("Error generating a subscription id: ", err)
+	}
+
+	subscriptionRequest := []interface{}{
+		"REQ",
+		subscriptionID,
+		map[string]interface{}{
+			"ids": damusRelay,
+		},
+	}
+
+	subscriptionRequestJSON, err := json.Marshal(subscriptionRequest)
+	if err != nil {
+		log.Fatal("Error sending subscription request: ", err)
+	}
+
+	err = conn.WriteMessage(websocket.TextMessage, subscriptionRequestJSON)
+	if err != nil {
+		log.Fatal("Error sending subscription")
+	}
+
+	fmt.Println("Subscription request sent")
+
+	// var batch []json.RawMessage
+	var log = logrus.New()
+
+	for {
+		_, message, err := conn.ReadMessage()
+		if err != nil {
+			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
+				log.WithFields(logrus.Fields{
+					"error": err,
+				}).Error("WebSocket read error")
+			}
+			break
+		}
+
+		if len(message) == 0 {
+			log.Warn("Received an empty message")
+			continue
+		}
+
+		var rMessage []interface{}
+		if err := json.Unmarshal(message, &rMessage); err != nil {
+			log.WithFields(logrus.Fields{
+				"error":   err,
+				"message": string(message),
+			}).Error("Error unmarshalling JSON")
+			continue
+		}
+
+		spew.Dump("reaction event: ", rMessage)
+	}
 }
