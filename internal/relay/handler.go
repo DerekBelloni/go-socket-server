@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/DerekBelloni/go-socket-server/internal/redis"
-	"github.com/davecgh/go-spew/spew"
 	"github.com/gorilla/websocket"
 	"github.com/sirupsen/logrus"
 )
@@ -129,7 +128,7 @@ func handleRelayConnection(conn *websocket.Conn, relayUrl string, finished chan<
 				if err != nil {
 					log.Fatal("Error marshalling the batched relay data: ", err)
 				}
-				redis.HandleRedis(batchJSON, relayUrl, finished)
+				redis.HandleRedis(batchJSON, relayUrl, finished, "")
 				break
 			}
 		}
@@ -143,7 +142,7 @@ func handleRelayConnection(conn *websocket.Conn, relayUrl string, finished chan<
 			break
 		}
 	}
-	retrieveReactionEvents()
+	retrieveReactionEvents(relayUrl, finished)
 }
 
 func extractETag(tag []interface{}) (bool, string) {
@@ -169,9 +168,9 @@ func processRelay(relaySlice *[]string, relay string, finished chan<- string, ev
 		*relaySlice = append(*relaySlice, eventID)
 		return true
 	}
-	if len(*relaySlice) == 25 {
-		finished <- relay
-	}
+	// if len(*relaySlice) == 25 {
+	// 	finished <- relay
+	// }
 	return false
 }
 
@@ -214,8 +213,8 @@ func parseReactionEvents(reactionEvents []interface{}, relayUrl string, finished
 	return true
 }
 
-func retrieveReactionEvents() {
-	conn, _, err := websocket.DefaultDialer.Dial("wss://relay.damus.io", nil)
+func retrieveReactionEvents(relayUrl string, finished chan<- string) {
+	conn, _, err := websocket.DefaultDialer.Dial(relayUrl, nil)
 	if err != nil {
 		log.Fatal("Dial error: ", err)
 	}
@@ -227,11 +226,27 @@ func retrieveReactionEvents() {
 		log.Fatal("Error generating a subscription id: ", err)
 	}
 
+	var relaySlice *[]string
+
+	switch relayUrl {
+	case "wss://relay.damus.io":
+		relaySlice = &damusRelay
+	case "wss://nos.lol":
+		relaySlice = &nosRelay
+	case "wss://purplerelay.com":
+		relaySlice = &purpleRelay
+	case "wss://relay.primal.net":
+		relaySlice = &primalRelay
+	default:
+		log.Printf("Uknown relay URL: %s", relayUrl)
+		return
+	}
+
 	subscriptionRequest := []interface{}{
 		"REQ",
 		subscriptionID,
 		map[string]interface{}{
-			"ids": damusRelay,
+			"ids": relaySlice,
 		},
 	}
 
@@ -247,7 +262,7 @@ func retrieveReactionEvents() {
 
 	fmt.Println("Subscription request sent")
 
-	// var batch []json.RawMessage
+	var batch []json.RawMessage
 	var log = logrus.New()
 
 	for {
@@ -275,6 +290,17 @@ func retrieveReactionEvents() {
 			continue
 		}
 
-		spew.Dump("reaction event: ", rMessage)
+		if len(rMessage) > 3 {
+			firstElement, ok := rMessage[0].(string)
+			if !ok || firstElement != "EOSE" {
+				continue
+			}
+			batchJson, err := json.Marshal(batch)
+			if err != nil {
+				fmt.Println("Error marshalling the batched relay data for trending events: ", err)
+			}
+			redis.HandleRedis(batchJson, relayUrl, finished, "trending")
+		}
+		batch = append(batch, message)
 	}
 }
