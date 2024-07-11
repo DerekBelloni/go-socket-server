@@ -56,7 +56,22 @@ func createSubscriptionRequest() []interface{} {
 func handleRelayConnection(conn *websocket.Conn, relayUrl string, finished chan<- string) {
 	defer conn.Close()
 
-	subscriptionRequest := createSubscriptionRequest()
+	subscriptionID, err := generateRandomString(16)
+	if err != nil {
+		log.Fatal("Error generating a subscription id: ", err)
+	}
+
+	start := time.Now()
+	subscriptionRequest := []interface{}{
+		"REQ",
+		subscriptionID,
+		map[string]interface{}{
+			"kinds": []int{0, 1, 7},
+			"since": start.Add(-24 * time.Hour).Unix(),
+			"until": time.Now().Unix(),
+			"limit": 500,
+		},
+	}
 
 	subscriptionRequestJSON, err := json.Marshal(subscriptionRequest)
 	if err != nil {
@@ -72,10 +87,32 @@ func handleRelayConnection(conn *websocket.Conn, relayUrl string, finished chan<
 
 	var batch []json.RawMessage
 	var log = logrus.New()
+	var reactionEvents []interface{}
 
-	for {
+	eventChan := make(chan json.RawMessage, 100)
+	doneChan := make(chan struct{})
+
+	go func() {
+		for event := range eventChan {
+			batch = append(batch, event)
+			if len(batch) >= 100 {
+				batchJSON, err := json.Marshal(batch)
+				if err != nil {
+					log.Fatal("Error marshalling the batched relay data: ", err)
+				}
+				redis.HandleRedis(batchJSON, relayUrl, finished, "banana")
+				break
+			}
+		}
+		doneChan <- struct{}{}
+	}()
+
+	messageCount := 0
+
+	for messageCount < 100 {
 		_, message, err := conn.ReadMessage()
 		if err != nil {
+			// this error handling can get its own method
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
 				log.WithFields(logrus.Fields{
 					"error": err,
@@ -104,8 +141,7 @@ func handleRelayConnection(conn *websocket.Conn, relayUrl string, finished chan<
 			continue
 		}
 
-		var reactionEvents []interface{}
-		if len(rMessage) >= 3 {
+		if len(rMessage) > 2 {
 			eventMap, ok := rMessage[2].(map[string]interface{})
 			if !ok {
 				continue
@@ -123,26 +159,18 @@ func handleRelayConnection(conn *websocket.Conn, relayUrl string, finished chan<
 
 			reactionEvents = append(reactionEvents, eventMap["tags"])
 
-			if firstElement, ok := rMessage[0].(string); ok && firstElement == "EOSE" {
-				batchJSON, err := json.Marshal(batch)
-				if err != nil {
-					log.Fatal("Error marshalling the batched relay data: ", err)
-				}
-				redis.HandleRedis(batchJSON, relayUrl, finished, "")
-				break
-			}
+			eventChan <- message
+			messageCount++
 		}
 
 		batch = append(batch, message)
-		shouldContinue := parseReactionEvents(reactionEvents, relayUrl, finished)
-		if !shouldContinue {
-			log.WithFields(logrus.Fields{
-				"relay": relayUrl,
-			}).Info("Collected enough events, stopping processing")
-			break
-		}
 	}
-	retrieveReactionEvents(relayUrl, finished)
+	close(eventChan)
+	<-doneChan
+
+	if !parseReactionEvents(reactionEvents, relayUrl) {
+		retrieveReactionEvents(relayUrl, finished)
+	}
 }
 
 func extractETag(tag []interface{}) (bool, string) {
@@ -163,18 +191,15 @@ func extractETag(tag []interface{}) (bool, string) {
 	return true, eventID
 }
 
-func processRelay(relaySlice *[]string, relay string, finished chan<- string, eventID string) bool {
+func processRelay(relaySlice *[]string, eventID string) bool {
 	if len(*relaySlice) < 25 {
 		*relaySlice = append(*relaySlice, eventID)
 		return true
 	}
-	// if len(*relaySlice) == 25 {
-	// 	finished <- relay
-	// }
 	return false
 }
 
-func processEvent(eventArray []interface{}, relayUrl string, finished chan<- string) bool {
+func processEvent(eventArray []interface{}, relayUrl string) bool {
 	for _, tag := range eventArray {
 		tagArray, ok := tag.([]interface{})
 		if !ok {
@@ -188,23 +213,23 @@ func processEvent(eventArray []interface{}, relayUrl string, finished chan<- str
 			}
 			switch relay := relayUrl; relay {
 			case "wss://relay.damus.io":
-				return processRelay(&damusRelay, relay, finished, eventID)
+				return processRelay(&damusRelay, eventID)
 			case "wss://nos.lol":
-				return processRelay(&nosRelay, relay, finished, eventID)
+				return processRelay(&nosRelay, eventID)
 			case "wss://purplerelay.com":
-				return processRelay(&purpleRelay, relay, finished, eventID)
+				return processRelay(&purpleRelay, eventID)
 			case "wss://relay.primal.net":
-				return processRelay(&primalRelay, relay, finished, eventID)
+				return processRelay(&primalRelay, eventID)
 			}
 		}
 	}
 	return true
 }
 
-func parseReactionEvents(reactionEvents []interface{}, relayUrl string, finished chan<- string) bool {
+func parseReactionEvents(reactionEvents []interface{}, relayUrl string) bool {
 	for _, event := range reactionEvents {
 		if eventArray, ok := event.([]interface{}); ok {
-			shouldContinue := processEvent(eventArray, relayUrl, finished)
+			shouldContinue := processEvent(eventArray, relayUrl)
 			if !shouldContinue {
 				return false
 			}
@@ -238,10 +263,10 @@ func retrieveReactionEvents(relayUrl string, finished chan<- string) {
 	case "wss://relay.primal.net":
 		relaySlice = &primalRelay
 	default:
-		log.Printf("Uknown relay URL: %s", relayUrl)
+		log.Printf("Uknown relay URL: %s\n", relayUrl)
 		return
 	}
-
+	fmt.Printf("length: %d\n", len(damusRelay))
 	subscriptionRequest := []interface{}{
 		"REQ",
 		subscriptionID,
@@ -289,18 +314,21 @@ func retrieveReactionEvents(relayUrl string, finished chan<- string) {
 			}).Error("Error unmarshalling JSON")
 			continue
 		}
-
-		if len(rMessage) > 3 {
-			firstElement, ok := rMessage[0].(string)
-			if !ok || firstElement != "EOSE" {
+		fmt.Printf("retrieve reaction: %s, relay: %s\n", rMessage, relayUrl)
+		if len(rMessage) > 2 {
+			_, ok := rMessage[0].(string)
+			if !ok {
 				continue
 			}
+			batch = append(batch, message)
 			batchJson, err := json.Marshal(batch)
 			if err != nil {
 				fmt.Println("Error marshalling the batched relay data for trending events: ", err)
 			}
-			redis.HandleRedis(batchJson, relayUrl, finished, "trending")
+			if len(batchJson) >= 25 {
+				redis.HandleRedis(batchJson, relayUrl, finished, "trending")
+				break
+			}
 		}
-		batch = append(batch, message)
 	}
 }
