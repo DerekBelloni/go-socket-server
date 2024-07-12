@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/DerekBelloni/go-socket-server/internal/redis"
+	"github.com/davecgh/go-spew/spew"
 	"github.com/gorilla/websocket"
 	"github.com/sirupsen/logrus"
 )
@@ -89,13 +90,17 @@ func handleRelayConnection(conn *websocket.Conn, relayUrl string, finished chan<
 	var log = logrus.New()
 	var reactionEvents []interface{}
 
-	eventChan := make(chan json.RawMessage, 100)
+	eventChan := make(chan json.RawMessage, 500)
 	doneChan := make(chan struct{})
 
 	go func() {
+		eventCount := 0
 		for event := range eventChan {
+			fmt.Printf("event count: %d\n", eventCount)
+			eventCount++
+			spew.Dump("event: ", event)
 			batch = append(batch, event)
-			if len(batch) >= 100 {
+			if len(batch) >= 500 {
 				batchJSON, err := json.Marshal(batch)
 				if err != nil {
 					log.Fatal("Error marshalling the batched relay data: ", err)
@@ -106,10 +111,9 @@ func handleRelayConnection(conn *websocket.Conn, relayUrl string, finished chan<
 		}
 		doneChan <- struct{}{}
 	}()
-
 	messageCount := 0
 
-	for messageCount < 100 {
+	for messageCount < 500 {
 		_, message, err := conn.ReadMessage()
 		if err != nil {
 			// this error handling can get its own method
@@ -142,6 +146,8 @@ func handleRelayConnection(conn *websocket.Conn, relayUrl string, finished chan<
 		}
 
 		if len(rMessage) > 2 {
+			eventChan <- message
+			messageCount++
 			eventMap, ok := rMessage[2].(map[string]interface{})
 			if !ok {
 				continue
@@ -158,12 +164,10 @@ func handleRelayConnection(conn *websocket.Conn, relayUrl string, finished chan<
 			}
 
 			reactionEvents = append(reactionEvents, eventMap["tags"])
-
-			eventChan <- message
-			messageCount++
 		}
-
-		batch = append(batch, message)
+		// eventChan <- message
+		// messageCount++
+		// batch = append(batch, message)
 	}
 	close(eventChan)
 	<-doneChan
@@ -192,7 +196,7 @@ func extractETag(tag []interface{}) (bool, string) {
 }
 
 func processRelay(relaySlice *[]string, eventID string) bool {
-	if len(*relaySlice) < 25 {
+	if len(*relaySlice) < 50 {
 		*relaySlice = append(*relaySlice, eventID)
 		return true
 	}
@@ -314,12 +318,13 @@ func retrieveReactionEvents(relayUrl string, finished chan<- string) {
 			}).Error("Error unmarshalling JSON")
 			continue
 		}
-		fmt.Printf("retrieve reaction: %s, relay: %s\n", rMessage, relayUrl)
+		fmt.Printf("retrieve reaction: %s\n, relay: %s\n", rMessage, relayUrl)
 		if len(rMessage) > 2 {
 			_, ok := rMessage[0].(string)
 			if !ok {
 				continue
 			}
+			spew.Dump(rMessage...)
 			batch = append(batch, message)
 			batchJson, err := json.Marshal(batch)
 			if err != nil {
