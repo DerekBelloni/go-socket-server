@@ -33,7 +33,6 @@ func main() {
 			for {
 				select {
 				case <-ticker.C:
-					fmt.Println("timer worked!")
 					wg.Add(1)
 					go func() {
 						relay.ConnectToRelay(relayUrl, finished)
@@ -55,8 +54,8 @@ func main() {
 		os.Exit(0)
 	}()
 
-	for url := range finished {
-		fmt.Printf("Finished processing for relay: %s\n", url)
+	for relayUrl := range finished {
+		fmt.Printf("Finished processing metadata for user: %s\n", relayUrl)
 		wg.Done()
 	}
 

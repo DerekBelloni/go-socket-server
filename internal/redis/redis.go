@@ -31,8 +31,25 @@ func HandleRedis(relayNotesJSON []byte, relayUrl string, finished chan<- string,
 		return err
 	}
 
-	if batchType == "trending" {
+	if batchType != "trending" {
 		finished <- relayUrl
 	}
 	return nil
+}
+
+func HandleMetaData(userMetadataJSON []byte, finished chan<- string, relayUrl string) {
+	client := redis.NewClient(&redis.Options{
+		Addr:     "localhost:6379",
+		Password: "",
+		DB:       0,
+	})
+
+	ctx := context.Background()
+
+	err := client.Set(ctx, "user-metadata", userMetadataJSON, 0).Err()
+	if err != nil {
+		fmt.Println("Error setting user metadata to redis: ", err)
+	}
+
+	finished <- relayUrl
 }
