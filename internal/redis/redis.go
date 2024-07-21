@@ -37,7 +37,7 @@ func HandleRedis(relayNotesJSON []byte, relayUrl string, finished chan<- string,
 	return nil
 }
 
-func HandleMetaData(userMetadataJSON []byte, finished chan<- string, relayUrl string) {
+func HandleMetaData(userMetadataJSON []byte, finished chan<- string, relayUrl string, pubKeyHex string) {
 	client := redis.NewClient(&redis.Options{
 		Addr:     "localhost:6379",
 		Password: "",
@@ -46,7 +46,7 @@ func HandleMetaData(userMetadataJSON []byte, finished chan<- string, relayUrl st
 
 	ctx := context.Background()
 
-	err := client.Set(ctx, "user-metadata", userMetadataJSON, 0).Err()
+	err := client.Set(ctx, pubKeyHex, userMetadataJSON, 0).Err()
 	if err != nil {
 		fmt.Println("Error setting user metadata to redis: ", err)
 	}
