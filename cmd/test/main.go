@@ -50,18 +50,17 @@ func userMetadataQueue(relayUrls []string, finished chan<- string) {
 	}
 	var userHexKey []byte
 
-	// routine for each queue
-	fmt.Printf("Queue name: %v\n", queue.Name)
 	if queue.Name == "user_pub_key" {
-		fmt.Println("banana")
 		// go func() {
 		for d := range msgs {
-			// fmt.Printf("User hex key: %v\n", string(d.Body))
+
+			// maybe write d.body to a channel?
 			userHexKey = []byte(hex.EncodeToString(d.Body))
 			fmt.Printf("Hex decoded key: %s\n", userHexKey)
 		}
 		// }()
 	}
+
 	// for _, url := range relayUrls {
 	// 	fmt.Printf("url %v\n", url)
 	// 	fmt.Printf("user hex key before relay call: %v\n", string(userHexKey))
