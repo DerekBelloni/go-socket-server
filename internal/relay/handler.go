@@ -31,6 +31,7 @@ func generateRandomString(length int) (string, error) {
 
 // I can probably hand in a connection type here as well
 func handleRelayConnection(conn *websocket.Conn, relayUrl string, finished chan<- string, userHexKey []byte) {
+	fmt.Printf("Hex key: %v\n", userHexKey)
 	defer conn.Close()
 
 	subscriptionID, err := generateRandomString(16)

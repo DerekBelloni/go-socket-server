@@ -1,14 +1,15 @@
 package main
 
 import (
+	"encoding/hex"
 	"fmt"
 	"log"
 
-	"github.com/DerekBelloni/go-socket-server/internal/relay"
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
 func userMetadataQueue(relayUrls []string, finished chan<- string) {
+	var forever chan struct{}
 	conn, err := amqp.Dial("amqp://guest:guest@localhost:5672/")
 	if err != nil {
 		fmt.Println("Failed to connect to RabbitMQ", err)
@@ -47,21 +48,28 @@ func userMetadataQueue(relayUrls []string, finished chan<- string) {
 	if err != nil {
 		fmt.Println("Failed to register a consumer")
 	}
-
 	var userHexKey []byte
 
 	// routine for each queue
-	if queue.Name != "user_pub_key" {
+	fmt.Printf("Queue name: %v\n", queue.Name)
+	if queue.Name == "user_pub_key" {
+		fmt.Println("banana")
+		// go func() {
 		for d := range msgs {
-			userHexKey = d.Body
+			// fmt.Printf("User hex key: %v\n", string(d.Body))
+			userHexKey = []byte(hex.EncodeToString(d.Body))
+			fmt.Printf("Hex decoded key: %s\n", userHexKey)
 		}
+		// }()
 	}
-
-	for _, url := range relayUrls {
-		relay.ConnectToRelay(url, finished, "user_metadata", userHexKey)
-	}
+	// for _, url := range relayUrls {
+	// 	fmt.Printf("url %v\n", url)
+	// 	fmt.Printf("user hex key before relay call: %v\n", string(userHexKey))
+	// 	// relay.ConnectToRelay(url, finished, "user_metadata", userHexKey)
+	// }
 
 	log.Printf("[*] Waiting for messages. To exit press CTRL+C")
+	<-forever
 }
 
 func main() {

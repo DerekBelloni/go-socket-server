@@ -13,5 +13,5 @@ func ConnectToRelay(relayUrl string, finished chan<- string, mqMsgType string, u
 	}
 	defer conn.Close()
 
-	handleRelayConnection(conn, relayUrl, finished)
+	handleRelayConnection(conn, relayUrl, finished, userHexKey)
 }
