@@ -1,15 +1,18 @@
 package main
 
 import (
-	"encoding/hex"
 	"fmt"
 	"log"
+	"sync"
 
+	"github.com/DerekBelloni/go-socket-server/internal/relay"
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
-func userMetadataQueue(relayUrls []string, finished chan<- string) {
-	var forever chan struct{}
+func userMetadataQueue(relayUrls []string) {
+	forever := make(chan struct{})
+	finished := make(chan string)
+
 	conn, err := amqp.Dial("amqp://guest:guest@localhost:5672/")
 	if err != nil {
 		fmt.Println("Failed to connect to RabbitMQ", err)
@@ -48,24 +51,31 @@ func userMetadataQueue(relayUrls []string, finished chan<- string) {
 	if err != nil {
 		fmt.Println("Failed to register a consumer")
 	}
-	var userHexKey []byte
+
+	var wg sync.WaitGroup
+
+	go func() {
+		for relayUrl := range finished {
+			fmt.Printf("Finished processing relay: %s\n", relayUrl)
+			wg.Done() // Decrement the counter for each finished relay processing
+		}
+	}()
 
 	if queue.Name == "user_pub_key" {
-		// go func() {
 		for d := range msgs {
+			wg.Add(1)
+			go func(d amqp.Delivery) {
+				defer wg.Done()
 
-			// maybe write d.body to a channel?
-			userHexKey = []byte(hex.EncodeToString(d.Body))
-			fmt.Printf("Hex decoded key: %s\n", userHexKey)
+				fmt.Printf("user hex key: %s\n", string(d.Body))
+				userHexKey := string(d.Body)
+				for _, url := range relayUrls {
+					wg.Add(1)
+					relay.ConnectToRelay(url, finished, "user_metadata", userHexKey)
+				}
+			}(d)
 		}
-		// }()
 	}
-
-	// for _, url := range relayUrls {
-	// 	fmt.Printf("url %v\n", url)
-	// 	fmt.Printf("user hex key before relay call: %v\n", string(userHexKey))
-	// 	// relay.ConnectToRelay(url, finished, "user_metadata", userHexKey)
-	// }
 
 	log.Printf("[*] Waiting for messages. To exit press CTRL+C")
 	<-forever
@@ -80,11 +90,11 @@ func main() {
 		"wss://relay.nostr.band",
 	}
 
-	finished := make(chan string)
+	// finished := make(chan string)
 	var forever chan struct{}
 
 	// Queue: User Metadata
-	go userMetadataQueue(relayUrls, finished)
+	go userMetadataQueue(relayUrls)
 
 	// Queue: Posting a Note
 
