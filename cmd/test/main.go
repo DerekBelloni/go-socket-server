@@ -9,6 +9,10 @@ import (
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
+func createNote() {
+
+}
+
 func userMetadataQueue(relayUrls []string) {
 	forever := make(chan struct{})
 	finished := make(chan string)
@@ -61,6 +65,7 @@ func userMetadataQueue(relayUrls []string) {
 		}
 	}()
 
+	// need to alter this check so I am finding the queue by its name ON the msgs
 	if queue.Name == "user_pub_key" {
 		for d := range msgs {
 			wg.Add(1)
@@ -97,6 +102,7 @@ func main() {
 	go userMetadataQueue(relayUrls)
 
 	// Queue: Posting a Note
+	go createNote()
 
 	<-forever
 

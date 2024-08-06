@@ -39,14 +39,14 @@ func handleRelayConnection(conn *websocket.Conn, relayUrl string, finished chan<
 		log.Fatal("Error generating a subscription id: ", err)
 	}
 
-	pubKeyHex := "9ba9ec6ed76fb4f4b94c27ae7932b3e8eacab0787162ba71d7d1b9c61d0e5c74"
+	// pubKeyHex := "9ba9ec6ed76fb4f4b94c27ae7932b3e8eacab0787162ba71d7d1b9c61d0e5c74"
 
 	subscriptionRequest := []interface{}{
 		"REQ",
 		subscriptionID,
 		map[string]interface{}{
 			"kinds":   []int{0},
-			"authors": []string{pubKeyHex},
+			"authors": []string{userHexKey},
 		},
 	}
 
@@ -63,6 +63,7 @@ func handleRelayConnection(conn *websocket.Conn, relayUrl string, finished chan<
 	fmt.Println("Metadata request sent")
 	var log = logrus.New()
 
+	// the loop for connecting, reading and writing can probably be abstracted out into its own method
 	for {
 		_, message, err := conn.ReadMessage()
 		if err != nil {
@@ -105,7 +106,8 @@ func handleRelayConnection(conn *websocket.Conn, relayUrl string, finished chan<
 			break
 		}
 
-		redis.HandleMetaData(jsonMetadata, finished, relayUrl, pubKeyHex)
+		redis.HandleMetaData(jsonMetadata, finished, relayUrl, userHexKey)
+		conn.Close()
 	}
 
 	// var batch []json.RawMessage

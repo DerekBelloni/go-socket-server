@@ -46,9 +46,12 @@ func HandleMetaData(userMetadataJSON []byte, finished chan<- string, relayUrl st
 
 	ctx := context.Background()
 
-	err := client.Set(ctx, pubKeyHex, userMetadataJSON, 0).Err()
-	if err != nil {
-		fmt.Println("Error setting user metadata to redis: ", err)
+	if pubKeyHex != "" {
+		err := client.Set(ctx, pubKeyHex, userMetadataJSON, 0).Err()
+
+		if err != nil {
+			fmt.Println("Error setting user metadata to redis: ", err)
+		}
 	}
 
 	finished <- relayUrl
