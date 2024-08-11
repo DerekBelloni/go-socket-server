@@ -98,12 +98,12 @@ func userMetadataQueue(relayUrls []string) {
 		fmt.Println("Failed to register a consumer")
 	}
 
-	var wg sync.WaitGroup
+	var innerWg sync.WaitGroup
+	var outerWg sync.WaitGroup
 
 	go func() {
 		for relayUrl := range finished {
 			fmt.Printf("Finished processing relay: %s\n", relayUrl)
-			wg.Done() // Decrement the counter for each finished relay processing
 		}
 	}()
 
@@ -111,22 +111,23 @@ func userMetadataQueue(relayUrls []string) {
 	var userHexKey string
 	if queue.Name == "user_pub_key" {
 		for d := range msgs {
-			wg.Add(1)
+			outerWg.Add(1)
 			go func(d amqp.Delivery) {
-				defer wg.Done()
-
-				fmt.Printf("user hex key: %s\n", string(d.Body))
-				userHexKey = string(d.Body)
+				defer outerWg.Done()
+				userHexKey := string(d.Body)
 				for _, url := range relayUrls {
-					wg.Add(1)
-					relay.ConnectToRelay(url, finished, "user_metadata", userHexKey)
+					innerWg.Add(1)
+					go func(url string) {
+						defer innerWg.Done()
+						relay.ConnectToRelay(url, finished, "user_metadata", userHexKey)
+					}(url)
 				}
+				innerWg.Wait()
 			}(d)
+			metadataSetQueue(conn, userHexKey)
 		}
 	}
-	wg.Wait()
-
-	metadataSetQueue(conn, userHexKey)
+	outerWg.Wait()
 
 	log.Printf("[*] Waiting for messages. To exit press CTRL+C")
 	<-forever
@@ -136,7 +137,7 @@ func main() {
 	relayUrls := []string{
 		"wss://relay.damus.io",
 		"wss://nos.lol",
-		"wss://purplerelay.com",
+		// "wss://purplerelay.com",
 		"wss://relay.primal.net",
 		"wss://relay.nostr.band",
 	}

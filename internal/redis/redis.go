@@ -38,6 +38,7 @@ func HandleRedis(relayNotesJSON []byte, relayUrl string, finished chan<- string,
 }
 
 func HandleMetaData(userMetadataJSON []byte, finished chan<- string, relayUrl string, pubKeyHex string) {
+	fmt.Printf("Relay url: %v\n", relayUrl)
 	client := redis.NewClient(&redis.Options{
 		Addr:     "localhost:6379",
 		Password: "",
