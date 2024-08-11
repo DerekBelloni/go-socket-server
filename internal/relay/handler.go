@@ -89,7 +89,7 @@ func handleRelayConnection(conn *websocket.Conn, relayUrl string, finished chan<
 			}).Error("Error unmarshalling JSON")
 			continue
 		}
-
+		fmt.Println("banana")
 		var jsonMetadata []byte
 
 		if len(metadataMessage) == 0 || metadataMessage[0] == "EOSE" {
@@ -107,7 +107,6 @@ func handleRelayConnection(conn *websocket.Conn, relayUrl string, finished chan<
 		}
 
 		redis.HandleMetaData(jsonMetadata, finished, relayUrl, userHexKey)
-		conn.Close()
 	}
 
 	// var batch []json.RawMessage

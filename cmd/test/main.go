@@ -1,9 +1,11 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"sync"
+	"time"
 
 	"github.com/DerekBelloni/go-socket-server/internal/relay"
 	amqp "github.com/rabbitmq/amqp091-go"
@@ -11,6 +13,46 @@ import (
 
 func createNote() {
 
+}
+
+func metadataSetQueue(conn *amqp.Connection, userHexKey string) {
+	fmt.Println("Test")
+	channel, err := conn.Channel()
+	if err != nil {
+		fmt.Println("Failed to open a channel")
+	}
+
+	defer channel.Close()
+
+	queue, err := channel.QueueDeclare(
+		"metadata_set",
+		false,
+		false,
+		false,
+		false,
+		nil,
+	)
+
+	if err != nil {
+		fmt.Println("Failed to declare a queue", err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	err = channel.PublishWithContext(ctx,
+		"",
+		queue.Name,
+		false,
+		false,
+		amqp.Publishing{
+			ContentType: "text/plain",
+			Body:        []byte(userHexKey),
+		})
+
+	if err != nil {
+		fmt.Println("Failed to publish message")
+	}
 }
 
 func userMetadataQueue(relayUrls []string) {
@@ -66,6 +108,7 @@ func userMetadataQueue(relayUrls []string) {
 	}()
 
 	// need to alter this check so I am finding the queue by its name ON the msgs
+	var userHexKey string
 	if queue.Name == "user_pub_key" {
 		for d := range msgs {
 			wg.Add(1)
@@ -73,7 +116,7 @@ func userMetadataQueue(relayUrls []string) {
 				defer wg.Done()
 
 				fmt.Printf("user hex key: %s\n", string(d.Body))
-				userHexKey := string(d.Body)
+				userHexKey = string(d.Body)
 				for _, url := range relayUrls {
 					wg.Add(1)
 					relay.ConnectToRelay(url, finished, "user_metadata", userHexKey)
@@ -81,6 +124,9 @@ func userMetadataQueue(relayUrls []string) {
 			}(d)
 		}
 	}
+	wg.Wait()
+
+	metadataSetQueue(conn, userHexKey)
 
 	log.Printf("[*] Waiting for messages. To exit press CTRL+C")
 	<-forever
