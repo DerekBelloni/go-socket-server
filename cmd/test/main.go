@@ -16,7 +16,7 @@ func createNote() {
 }
 
 func metadataSetQueue(conn *amqp.Connection, userHexKey string) {
-	fmt.Println("Test")
+	fmt.Println("Starting metadataSetQueue for:", userHexKey)
 	channel, err := conn.Channel()
 	if err != nil {
 		fmt.Println("Failed to open a channel")
@@ -39,7 +39,7 @@ func metadataSetQueue(conn *amqp.Connection, userHexKey string) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-
+	fmt.Printf("User hex key: %v\n", userHexKey)
 	err = channel.PublishWithContext(ctx,
 		"",
 		queue.Name,
@@ -99,7 +99,7 @@ func userMetadataQueue(relayUrls []string) {
 	}
 
 	var innerWg sync.WaitGroup
-	var outerWg sync.WaitGroup
+	// var outerWg sync.WaitGroup
 
 	go func() {
 		for relayUrl := range finished {
@@ -108,12 +108,11 @@ func userMetadataQueue(relayUrls []string) {
 	}()
 
 	// need to alter this check so I am finding the queue by its name ON the msgs
-	var userHexKey string
 	if queue.Name == "user_pub_key" {
 		for d := range msgs {
-			outerWg.Add(1)
+			// outerWg.Add(1)
 			go func(d amqp.Delivery) {
-				defer outerWg.Done()
+				// defer outerWg.Done()
 				userHexKey := string(d.Body)
 				for _, url := range relayUrls {
 					innerWg.Add(1)
@@ -122,12 +121,14 @@ func userMetadataQueue(relayUrls []string) {
 						relay.ConnectToRelay(url, finished, "user_metadata", userHexKey)
 					}(url)
 				}
+				fmt.Println("Starting relay connections for:", userHexKey)
 				innerWg.Wait()
+				fmt.Println("All relay connections completed for:", userHexKey)
+				metadataSetQueue(conn, userHexKey)
 			}(d)
-			metadataSetQueue(conn, userHexKey)
 		}
 	}
-	outerWg.Wait()
+	// outerWg.Wait()
 
 	log.Printf("[*] Waiting for messages. To exit press CTRL+C")
 	<-forever

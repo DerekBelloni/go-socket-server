@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/gorilla/websocket"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -37,8 +38,7 @@ func HandleRedis(relayNotesJSON []byte, relayUrl string, finished chan<- string,
 	return nil
 }
 
-func HandleMetaData(userMetadataJSON []byte, finished chan<- string, relayUrl string, pubKeyHex string) {
-	fmt.Printf("Relay url: %v\n", relayUrl)
+func HandleMetaData(userMetadataJSON []byte, finished chan<- string, relayUrl string, pubKeyHex string, conn *websocket.Conn) {
 	client := redis.NewClient(&redis.Options{
 		Addr:     "localhost:6379",
 		Password: "",
@@ -54,6 +54,6 @@ func HandleMetaData(userMetadataJSON []byte, finished chan<- string, relayUrl st
 			fmt.Println("Error setting user metadata to redis: ", err)
 		}
 	}
-
+	conn.Close()
 	finished <- relayUrl
 }

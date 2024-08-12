@@ -31,15 +31,12 @@ func generateRandomString(length int) (string, error) {
 
 // I can probably hand in a connection type here as well
 func handleRelayConnection(conn *websocket.Conn, relayUrl string, finished chan<- string, userHexKey string) {
-	fmt.Printf("Hex key in handler: %v\n", userHexKey)
 	defer conn.Close()
 
 	subscriptionID, err := generateRandomString(16)
 	if err != nil {
 		log.Fatal("Error generating a subscription id: ", err)
 	}
-
-	// pubKeyHex := "9ba9ec6ed76fb4f4b94c27ae7932b3e8eacab0787162ba71d7d1b9c61d0e5c74"
 
 	subscriptionRequest := []interface{}{
 		"REQ",
@@ -106,7 +103,7 @@ func handleRelayConnection(conn *websocket.Conn, relayUrl string, finished chan<
 			break
 		}
 
-		redis.HandleMetaData(jsonMetadata, finished, relayUrl, userHexKey)
+		redis.HandleMetaData(jsonMetadata, finished, relayUrl, userHexKey, conn)
 	}
 
 	// var batch []json.RawMessage
