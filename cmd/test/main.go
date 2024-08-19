@@ -52,6 +52,8 @@ func metadataSetQueue(conn *amqp.Connection, userHexKey string) {
 
 	if err != nil {
 		fmt.Println("Failed to publish message")
+	} else {
+		fmt.Println("User metadata stashed in Redis")
 	}
 }
 
@@ -110,9 +112,7 @@ func userMetadataQueue(relayUrls []string) {
 	// need to alter this check so I am finding the queue by its name ON the msgs
 	if queue.Name == "user_pub_key" {
 		for d := range msgs {
-			// outerWg.Add(1)
 			go func(d amqp.Delivery) {
-				// defer outerWg.Done()
 				userHexKey := string(d.Body)
 				for _, url := range relayUrls {
 					innerWg.Add(1)
@@ -121,9 +121,7 @@ func userMetadataQueue(relayUrls []string) {
 						relay.ConnectToRelay(url, finished, "user_metadata", userHexKey)
 					}(url)
 				}
-				fmt.Println("Starting relay connections for:", userHexKey)
 				innerWg.Wait()
-				fmt.Println("All relay connections completed for:", userHexKey)
 				metadataSetQueue(conn, userHexKey)
 			}(d)
 		}
@@ -153,46 +151,4 @@ func main() {
 	go createNote()
 
 	<-forever
-
-	// finished := make(chan string)
-	// done := make(chan bool)
-	// var wg sync.WaitGroup
-
-	// ticker := time.NewTicker(10 * time.Minute)
-	// defer ticker.Stop()
-
-	// for _, relayUrl := range relayUrls {
-	// 	wg.Add(1)
-	// 	go func(relayUrl string) {
-	// 		relay.ConnectToRelay(relayUrl, finished)
-	// 		for {
-	// 			select {
-	// 			case <-ticker.C:
-	// 				wg.Add(1)
-	// 				go func() {
-	// 					relay.ConnectToRelay(relayUrl, finished)
-	// 				}()
-	// 			case <-done:
-	// 				return
-	// 			}
-	// 		}
-	// 	}(relayUrl)
-	// }
-
-	// sig := make(chan os.Signal, 1)
-	// signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
-
-	// go func() {
-	// 	<-sig
-	// 	close(done)
-	// 	wg.Wait()
-	// 	os.Exit(0)
-	// }()
-
-	// for relayUrl := range finished {
-	// 	fmt.Printf("Finished processing metadata for user: %s\n", relayUrl)
-	// 	wg.Done()
-	// }
-
-	// wg.Wait()
 }
