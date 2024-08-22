@@ -12,11 +12,55 @@ import (
 )
 
 func createNote() {
+	forever := make(chan struct{})
 
+	conn, err := amqp.Dial("amqp://guest:guest@localhost:5672/")
+	if err != nil {
+		fmt.Println("Failed to connect to RabbitMQ", err)
+	}
+	defer conn.Close()
+
+	channel, err := conn.Channel()
+	if err != nil {
+		fmt.Println("Failed to open a channel")
+	}
+
+	defer channel.Close()
+
+	queue, err := channel.QueueDeclare(
+		"new_note",
+		false,
+		false,
+		false,
+		false,
+		nil,
+	)
+
+	if err != nil {
+		fmt.Println("Failed to declare a queue", err)
+	}
+
+	msgs, err := channel.Consume(
+		queue.Name,
+		"",
+		true,
+		false,
+		false,
+		false,
+		nil,
+	)
+	if err != nil {
+		fmt.Println("Failed to register a consumer")
+	}
+
+	for msg := range msgs {
+		fmt.Printf("msg body: %v", string(msg.Body))
+	}
+
+	<-forever
 }
 
 func metadataSetQueue(conn *amqp.Connection, userHexKey string) {
-	fmt.Println("Starting metadataSetQueue for:", userHexKey)
 	channel, err := conn.Channel()
 	if err != nil {
 		fmt.Println("Failed to open a channel")
@@ -82,7 +126,7 @@ func userMetadataQueue(relayUrls []string) {
 		false,
 		nil,
 	)
-
+	fmt.Printf("queue: %v\n", queue)
 	if err != nil {
 		fmt.Println("Failed to declare a queue", err)
 	}
@@ -110,8 +154,10 @@ func userMetadataQueue(relayUrls []string) {
 	}()
 
 	// need to alter this check so I am finding the queue by its name ON the msgs
+	// maybe check the msgs is not empty
 	if queue.Name == "user_pub_key" {
 		for d := range msgs {
+			fmt.Printf("msg: %v\n", string(d.Body))
 			go func(d amqp.Delivery) {
 				userHexKey := string(d.Body)
 				for _, url := range relayUrls {
