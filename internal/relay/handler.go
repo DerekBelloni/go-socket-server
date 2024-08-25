@@ -6,7 +6,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"time"
 
+	"github.com/DerekBelloni/go-socket-server/data"
 	"github.com/DerekBelloni/go-socket-server/internal/redis"
 	"github.com/gorilla/websocket"
 	"github.com/sirupsen/logrus"
@@ -27,6 +29,46 @@ func generateRandomString(length int) (string, error) {
 	}
 
 	return hex.EncodeToString(bytes), nil
+}
+
+func handleNewNote(conn *websocket.Conn, relayUrl string, newNote data.NewNote, noteFinished chan<- string) {
+	// idea
+	defer func() {
+		noteFinished <- relayUrl
+
+		err := conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseAbnormalClosure, "Websocket closure"))
+		if err != nil {
+			logrus.New().WithFields(logrus.Fields{
+				"error": err,
+				"relay": relayUrl,
+			}).Warn("Error sending socket close message")
+			conn.Close()
+		}
+	}()
+
+	timestamp := time.Now().Unix()
+
+	privKeyHex := newNote.PrivHexKey
+
+	newNoteEvent := data.NostrEvent{
+		PubKey:    newNote.PubHexKey,
+		CreatedAt: timestamp,
+		Kind:      newNote.Kind,
+		Tags:      [][]string{},
+		Content:   newNote.Content,
+	}
+
+	err := newNoteEvent.GenerateId()
+	if err != nil {
+		log.Fatal("Error generating event ID: ", err)
+		return
+	}
+
+	err = newNoteEvent.SignEvent(privKeyHex)
+	if err != nil {
+		log.Fatal("Error signing the event: ", err)
+	}
+
 }
 
 // I can probably hand in a connection type here as well

@@ -2,17 +2,20 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"sync"
 	"time"
 
+	"github.com/DerekBelloni/go-socket-server/data"
 	"github.com/DerekBelloni/go-socket-server/internal/relay"
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
-func createNote() {
+func createNote(relayUrls []string) {
 	forever := make(chan struct{})
+	noteFinished := make(chan string)
 
 	conn, err := amqp.Dial("amqp://guest:guest@localhost:5672/")
 	if err != nil {
@@ -53,8 +56,26 @@ func createNote() {
 		fmt.Println("Failed to register a consumer")
 	}
 
+	var wg sync.WaitGroup
+
 	for msg := range msgs {
-		fmt.Printf("msg body: %v", string(msg.Body))
+		go func(msg amqp.Delivery) {
+			var newNote data.NewNote
+			err := json.Unmarshal([]byte(msg.Body), &newNote)
+			if err != nil {
+				fmt.Printf("Error unmarshalling json: %v\n", err)
+				return
+			}
+
+			for _, url := range relayUrls {
+				wg.Add(1)
+				go func(url string) {
+					defer wg.Done()
+					relay.SendNoteToRelay(url, newNote, noteFinished)
+				}(url)
+			}
+			fmt.Printf("New Note: %v\n", newNote)
+		}(msg)
 	}
 
 	<-forever
@@ -194,7 +215,7 @@ func main() {
 	go userMetadataQueue(relayUrls)
 
 	// Queue: Posting a Note
-	go createNote()
+	go createNote(relayUrls)
 
 	<-forever
 }
