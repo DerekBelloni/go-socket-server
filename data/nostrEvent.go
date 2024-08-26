@@ -6,8 +6,8 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/decred/dcrd/dcrec/secp256k1/v4"
-	"github.com/decred/dcrd/dcrec/secp256k1/v4/schnorr"
+	"github.com/btcsuite/btcd/btcec/v2"
+	"github.com/btcsuite/btcd/btcec/v2/schnorr"
 )
 
 type NostrEvent struct {
@@ -21,21 +21,14 @@ type NostrEvent struct {
 }
 
 func (e *NostrEvent) GenerateId() error {
-	eventForHashing := NostrEvent{
-		PubKey:    e.PubKey,
-		CreatedAt: e.CreatedAt,
-		Kind:      e.Kind,
-		Tags:      e.Tags,
-		Content:   e.Content,
-	}
-
+	// maybe move to its own method, serialize()
 	serialized, err := json.Marshal([]interface{}{
 		0,
-		eventForHashing.PubKey,
-		eventForHashing.CreatedAt,
-		eventForHashing.Kind,
-		eventForHashing.Tags,
-		eventForHashing.Content,
+		e.PubKey,
+		e.CreatedAt,
+		e.Kind,
+		e.Tags,
+		e.Content,
 	})
 
 	if err != nil {
@@ -49,18 +42,16 @@ func (e *NostrEvent) GenerateId() error {
 }
 
 func (e *NostrEvent) SignEvent(privateKeyHex string) error {
-	// conver the hex string to bytes
 	privateKeyBytes, err := hex.DecodeString(privateKeyHex)
 	if err != nil {
 		return fmt.Errorf("invalid private key hex: %w", err)
 	}
 
-	// Make a secp256k1 private key from bytes
-	privateKey := secp256k1.PrivKeyFromBytes(privateKeyBytes)
+	privateKey, _ := btcec.PrivKeyFromBytes(privateKeyBytes)
 
 	idBytes, err := hex.DecodeString(e.ID)
 	if err != nil {
-		return fmt.Errorf("invalide event ID: %w", err)
+		return fmt.Errorf("invalid event ID: %w", err)
 	}
 
 	sig, err := schnorr.Sign(privateKey, idBytes)
@@ -70,4 +61,33 @@ func (e *NostrEvent) SignEvent(privateKeyHex string) error {
 
 	e.Sig = hex.EncodeToString(sig.Serialize())
 	return nil
+}
+
+func (e *NostrEvent) VerifySignature() (bool, error) {
+	pubKey, err := hex.DecodeString(e.PubKey)
+	if err != nil {
+		return false, fmt.Errorf("invalid public key: %w", err)
+	}
+
+	sig, err := hex.DecodeString(e.Sig)
+	if err != nil {
+		return false, fmt.Errorf("invalid signature: %w", err)
+	}
+
+	idBytes, err := hex.DecodeString(e.ID)
+	if err != nil {
+		return false, fmt.Errorf("invalid event ID: %w", err)
+	}
+
+	parsedPubKey, err := schnorr.ParsePubKey(pubKey)
+	if err != nil {
+		return false, fmt.Errorf("failed to parse public key: %w", err)
+	}
+
+	parsedSig, err := schnorr.ParseSignature(sig)
+	if err != nil {
+		return false, fmt.Errorf("failed to parse signature: %w", err)
+	}
+
+	return parsedSig.Verify(idBytes, parsedPubKey), nil
 }

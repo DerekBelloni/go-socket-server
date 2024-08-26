@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"sync"
 	"time"
 
 	"github.com/DerekBelloni/go-socket-server/data"
@@ -31,8 +32,54 @@ func generateRandomString(length int) (string, error) {
 	return hex.EncodeToString(bytes), nil
 }
 
+func handleUserNotes(conn *websocket.Conn, relayUrl string, userHexKey string) {
+	defer conn.Close()
+
+	subscriptionID, err := generateRandomString(16)
+	if err != nil {
+		log.Fatal("Error generating a subscription id: ", err)
+	}
+
+	subscriptionRequest := []interface{}{
+		"REQ",
+		subscriptionID,
+		map[string]interface{}{
+			"kinds":   []int{1},
+			"authors": []string{userHexKey},
+			"since":   time.Now().Add(-24 * time.Hour).Unix(), // Last 24 hours
+			"limit":   100,
+		},
+	}
+
+	subscriptionRequestJSON, err := json.Marshal(subscriptionRequest)
+	if err != nil {
+		log.Fatal("Error marshalling subscription request: ", err)
+	}
+
+	err = conn.WriteMessage(websocket.TextMessage, subscriptionRequestJSON)
+	if err != nil {
+		log.Fatal("Error sending subscription request: ", err)
+	}
+
+	for {
+		_, message, err := conn.ReadMessage()
+		if err != nil {
+			fmt.Println("Apple")
+			break
+		}
+
+		var userNotes []interface{}
+		if err := json.Unmarshal(message, &userNotes); err != nil {
+			fmt.Println("Banana")
+			continue
+		}
+
+		fmt.Printf("user notes: %v\n", userNotes)
+	}
+}
+
 func handleNewNote(conn *websocket.Conn, relayUrl string, newNote data.NewNote, noteFinished chan<- string) {
-	// idea
+	// what are you doing here?
 	defer func() {
 		noteFinished <- relayUrl
 
@@ -48,8 +95,6 @@ func handleNewNote(conn *websocket.Conn, relayUrl string, newNote data.NewNote, 
 
 	timestamp := time.Now().Unix()
 
-	privKeyHex := newNote.PrivHexKey
-
 	newNoteEvent := data.NostrEvent{
 		PubKey:    newNote.PubHexKey,
 		CreatedAt: timestamp,
@@ -58,17 +103,62 @@ func handleNewNote(conn *websocket.Conn, relayUrl string, newNote data.NewNote, 
 		Content:   newNote.Content,
 	}
 
-	err := newNoteEvent.GenerateId()
-	if err != nil {
-		log.Fatal("Error generating event ID: ", err)
-		return
-	}
+	var idWg sync.WaitGroup
 
-	err = newNoteEvent.SignEvent(privKeyHex)
+	idWg.Add(1)
+	go func(note data.NostrEvent) {
+		defer idWg.Done()
+		err := newNoteEvent.GenerateId()
+		if err != nil {
+			log.Fatal("Error generating event ID: ", err)
+			return
+		}
+	}(newNoteEvent)
+	idWg.Wait()
+
+	err := newNoteEvent.SignEvent(newNote.PrivHexKey)
 	if err != nil {
 		log.Fatal("Error signing the event: ", err)
 	}
 
+	isValid, err := newNoteEvent.VerifySignature()
+	if err != nil {
+		log.Fatal("Error verifying signature: ", err)
+	}
+	if !isValid {
+		log.Fatal("Generated signature is not valid")
+	}
+
+	eventWrapper := []interface{}{"EVENT", newNoteEvent}
+
+	newNoteJson, err := json.Marshal(eventWrapper)
+	if err != nil {
+		log.Fatal("Error marshalling the event into JSON: ", err)
+	}
+
+	err = conn.WriteMessage(websocket.TextMessage, newNoteJson)
+	if err != nil {
+		log.Fatal("Error sending subscription request: ", err)
+	}
+
+	var log = logrus.New()
+	for {
+		_, message, err := conn.ReadMessage()
+		if err != nil {
+			log.WithFields(logrus.Fields{
+				"error": err,
+				"relay": relayUrl,
+			}).Error("WebSocket read error")
+			break
+		}
+		var newNoteMsg []interface{}
+		err = json.Unmarshal(message, &newNoteMsg)
+		if err != nil {
+			log.Fatal("Error unmarshalling json: ", err)
+		}
+		fmt.Printf("new message: %v\n", newNoteMsg)
+		// need to send something back through the channel to indicate the event was susccessful or not
+	}
 }
 
 // I can probably hand in a connection type here as well
@@ -99,20 +189,19 @@ func handleRelayConnection(conn *websocket.Conn, relayUrl string, finished chan<
 		log.Fatal("Error sending subscription request: ", err)
 	}
 
-	fmt.Println("Metadata request sent")
 	var log = logrus.New()
 
 	// the loop for connecting, reading and writing can probably be abstracted out into its own method
 	for {
 		_, message, err := conn.ReadMessage()
 		if err != nil {
-			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
-				log.WithFields(logrus.Fields{
-					"error": err,
-					"relay": relayUrl,
-				}).Error("WebSocket Error")
-				break
-			}
+			// if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
+			// 	log.WithFields(logrus.Fields{
+			// 		"error": err,
+			// 		"relay": relayUrl,
+			// 	}).Error("WebSocket Error")
+			// 	break
+			// }
 			log.WithFields(logrus.Fields{
 				"error": err,
 				"relay": relayUrl,

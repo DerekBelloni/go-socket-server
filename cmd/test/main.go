@@ -74,11 +74,20 @@ func createNote(relayUrls []string) {
 					relay.SendNoteToRelay(url, newNote, noteFinished)
 				}(url)
 			}
-			fmt.Printf("New Note: %v\n", newNote)
 		}(msg)
 	}
 
 	<-forever
+}
+
+func userNotes(conn *amqp.Connection, relayUrl string, userHexKey string) {
+	var noteWg sync.WaitGroup
+	noteWg.Add(1)
+	go func(relayUrl string) {
+		defer noteWg.Done()
+		relay.GetUserNotes(relayUrl, userHexKey)
+	}(relayUrl)
+	noteWg.Wait()
 }
 
 func metadataSetQueue(conn *amqp.Connection, userHexKey string) {
@@ -104,7 +113,7 @@ func metadataSetQueue(conn *amqp.Connection, userHexKey string) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	fmt.Printf("User hex key: %v\n", userHexKey)
+
 	err = channel.PublishWithContext(ctx,
 		"",
 		queue.Name,
@@ -147,7 +156,7 @@ func userMetadataQueue(relayUrls []string) {
 		false,
 		nil,
 	)
-	fmt.Printf("queue: %v\n", queue)
+
 	if err != nil {
 		fmt.Println("Failed to declare a queue", err)
 	}
@@ -178,15 +187,16 @@ func userMetadataQueue(relayUrls []string) {
 	// maybe check the msgs is not empty
 	if queue.Name == "user_pub_key" {
 		for d := range msgs {
-			fmt.Printf("msg: %v\n", string(d.Body))
 			go func(d amqp.Delivery) {
 				userHexKey := string(d.Body)
 				for _, url := range relayUrls {
+
 					innerWg.Add(1)
-					go func(url string) {
+					go func(url string, conn *amqp.Connection) {
 						defer innerWg.Done()
 						relay.ConnectToRelay(url, finished, "user_metadata", userHexKey)
-					}(url)
+						userNotes(conn, url, userHexKey)
+					}(url, conn)
 				}
 				innerWg.Wait()
 				metadataSetQueue(conn, userHexKey)
