@@ -80,12 +80,12 @@ func createNote(relayUrls []string) {
 	<-forever
 }
 
-func userNotes(conn *amqp.Connection, relayUrl string, userHexKey string) {
+func userNotes(ctx context.Context, conn *amqp.Connection, relayUrl string, userHexKey string) {
 	var noteWg sync.WaitGroup
 	noteWg.Add(1)
 	go func(relayUrl string) {
 		defer noteWg.Done()
-		relay.GetUserNotes(relayUrl, userHexKey)
+		relay.GetUserNotes(ctx, relayUrl, userHexKey)
 	}(relayUrl)
 	noteWg.Wait()
 }
@@ -182,6 +182,8 @@ func userMetadataQueue(relayUrls []string) {
 			fmt.Printf("Finished processing relay: %s\n", relayUrl)
 		}
 	}()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
 	// need to alter this check so I am finding the queue by its name ON the msgs
 	// maybe check the msgs is not empty
@@ -195,7 +197,7 @@ func userMetadataQueue(relayUrls []string) {
 					go func(url string, conn *amqp.Connection) {
 						defer innerWg.Done()
 						relay.ConnectToRelay(url, finished, "user_metadata", userHexKey)
-						userNotes(conn, url, userHexKey)
+						userNotes(ctx, conn, url, userHexKey)
 					}(url, conn)
 				}
 				innerWg.Wait()

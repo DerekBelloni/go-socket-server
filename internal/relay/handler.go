@@ -1,6 +1,7 @@
 package relay
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
@@ -11,7 +12,9 @@ import (
 
 	"github.com/DerekBelloni/go-socket-server/data"
 	"github.com/DerekBelloni/go-socket-server/internal/redis"
+	"github.com/davecgh/go-spew/spew"
 	"github.com/gorilla/websocket"
+	amqp "github.com/rabbitmq/amqp091-go"
 	"github.com/sirupsen/logrus"
 )
 
@@ -32,7 +35,7 @@ func generateRandomString(length int) (string, error) {
 	return hex.EncodeToString(bytes), nil
 }
 
-func handleUserNotes(conn *websocket.Conn, relayUrl string, userHexKey string) {
+func handleUserNotes(ctx context.Context, conn *websocket.Conn, relayUrl string, userHexKey string) {
 	defer conn.Close()
 
 	subscriptionID, err := generateRandomString(16)
@@ -74,7 +77,59 @@ func handleUserNotes(conn *websocket.Conn, relayUrl string, userHexKey string) {
 			continue
 		}
 
+		if len(userNotes) == 0 || (len(userNotes) > 0 && (userNotes[0] == "EOSE" || userNotes[1] == "NOTICE")) {
+			<-ctx.Done()
+			return
+		}
 		fmt.Printf("user notes: %v\n", userNotes)
+
+		conn, err := amqp.Dial("amqp://guest:guest@localhost:5672/")
+		if err != nil {
+			fmt.Println("Failed to connect to RabbitMQ", err)
+		}
+		defer conn.Close()
+
+		channel, err := conn.Channel()
+		if err != nil {
+			fmt.Println("Failed to open a channel")
+		}
+
+		defer channel.Close()
+
+		queue, err := channel.QueueDeclare(
+			"user_notes",
+			false,
+			false,
+			false,
+			false,
+			nil,
+		)
+
+		if err != nil {
+			fmt.Println("Failed to declare a queue", err)
+		}
+
+		jsonUserNotes, err := json.Marshal(userNotes)
+		if err != nil {
+			fmt.Println("Failed to marshall user notes into JSON")
+			continue
+		}
+		spew.Dump("json user notes: ", jsonUserNotes)
+		err = channel.PublishWithContext(ctx,
+			"",
+			queue.Name,
+			false,
+			false,
+			amqp.Publishing{
+				ContentType: "text/plain",
+				Body:        []byte(jsonUserNotes),
+			})
+
+		if err != nil {
+			fmt.Printf("User notes sent to rabbitmq")
+		} else {
+			fmt.Printf("Failed to send notes with rabbitmq: %v", err)
+		}
 	}
 }
 
