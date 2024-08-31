@@ -2,7 +2,6 @@ package relay
 
 import (
 	"context"
-	"fmt"
 	"log"
 
 	"github.com/DerekBelloni/go-socket-server/data"
@@ -29,13 +28,12 @@ func SendNoteToRelay(relayUrl string, newNote data.NewNote, noteFinished chan<- 
 	handleNewNote(conn, relayUrl, newNote, noteFinished)
 }
 
-func GetUserNotes(ctx context.Context, relayUrl string, userHexKey string) {
-	fmt.Printf("Relay url: %s, user hex key: %s\n", relayUrl, userHexKey)
+func GetUserNotes(ctx context.Context, cancel context.CancelFunc, relayUrl string, userHexKey string) {
 	conn, _, err := websocket.DefaultDialer.Dial(relayUrl, nil)
 	if err != nil {
 		log.Fatal("Dial error: ", err)
 	}
 	defer conn.Close()
 
-	handleUserNotes(ctx, conn, relayUrl, userHexKey)
+	handleUserNotes(ctx, cancel, conn, relayUrl, userHexKey)
 }

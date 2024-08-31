@@ -12,7 +12,6 @@ import (
 
 	"github.com/DerekBelloni/go-socket-server/data"
 	"github.com/DerekBelloni/go-socket-server/internal/redis"
-	"github.com/davecgh/go-spew/spew"
 	"github.com/gorilla/websocket"
 	amqp "github.com/rabbitmq/amqp091-go"
 	"github.com/sirupsen/logrus"
@@ -35,7 +34,7 @@ func generateRandomString(length int) (string, error) {
 	return hex.EncodeToString(bytes), nil
 }
 
-func handleUserNotes(ctx context.Context, conn *websocket.Conn, relayUrl string, userHexKey string) {
+func handleUserNotes(ctx context.Context, cancel context.CancelFunc, conn *websocket.Conn, relayUrl string, userHexKey string) {
 	defer conn.Close()
 
 	subscriptionID, err := generateRandomString(16)
@@ -49,7 +48,6 @@ func handleUserNotes(ctx context.Context, conn *websocket.Conn, relayUrl string,
 		map[string]interface{}{
 			"kinds":   []int{1},
 			"authors": []string{userHexKey},
-			"since":   time.Now().Add(-24 * time.Hour).Unix(), // Last 24 hours
 			"limit":   100,
 		},
 	}
@@ -78,10 +76,10 @@ func handleUserNotes(ctx context.Context, conn *websocket.Conn, relayUrl string,
 		}
 
 		if len(userNotes) == 0 || (len(userNotes) > 0 && (userNotes[0] == "EOSE" || userNotes[1] == "NOTICE")) {
-			<-ctx.Done()
+			fmt.Println("Failed note length check")
+			cancel()
 			return
 		}
-		fmt.Printf("user notes: %v\n", userNotes)
 
 		conn, err := amqp.Dial("amqp://guest:guest@localhost:5672/")
 		if err != nil {
@@ -114,7 +112,7 @@ func handleUserNotes(ctx context.Context, conn *websocket.Conn, relayUrl string,
 			fmt.Println("Failed to marshall user notes into JSON")
 			continue
 		}
-		spew.Dump("json user notes: ", jsonUserNotes)
+
 		err = channel.PublishWithContext(ctx,
 			"",
 			queue.Name,
@@ -126,9 +124,10 @@ func handleUserNotes(ctx context.Context, conn *websocket.Conn, relayUrl string,
 			})
 
 		if err != nil {
-			fmt.Printf("User notes sent to rabbitmq")
+			fmt.Printf("Failed to send notes with rabbitmq: %v\n", err)
 		} else {
-			fmt.Printf("Failed to send notes with rabbitmq: %v", err)
+			fmt.Printf("User notes sent to rabbitmq\n")
+			cancel()
 		}
 	}
 }

@@ -80,14 +80,13 @@ func createNote(relayUrls []string) {
 	<-forever
 }
 
-func userNotes(ctx context.Context, conn *amqp.Connection, relayUrl string, userHexKey string) {
+func userNotes(ctx context.Context, cancel context.CancelFunc, relayUrl string, userHexKey string) {
 	var noteWg sync.WaitGroup
 	noteWg.Add(1)
 	go func(relayUrl string) {
 		defer noteWg.Done()
-		relay.GetUserNotes(ctx, relayUrl, userHexKey)
+		relay.GetUserNotes(ctx, cancel, relayUrl, userHexKey)
 	}(relayUrl)
-	noteWg.Wait()
 }
 
 func metadataSetQueue(conn *amqp.Connection, userHexKey string) {
@@ -187,23 +186,21 @@ func userMetadataQueue(relayUrls []string) {
 
 	// need to alter this check so I am finding the queue by its name ON the msgs
 	// maybe check the msgs is not empty
-	if queue.Name == "user_pub_key" {
-		for d := range msgs {
-			go func(d amqp.Delivery) {
-				userHexKey := string(d.Body)
-				for _, url := range relayUrls {
+	for d := range msgs {
+		go func(d amqp.Delivery) {
+			userHexKey := string(d.Body)
+			for _, url := range relayUrls {
 
-					innerWg.Add(1)
-					go func(url string, conn *amqp.Connection) {
-						defer innerWg.Done()
-						relay.ConnectToRelay(url, finished, "user_metadata", userHexKey)
-						userNotes(ctx, conn, url, userHexKey)
-					}(url, conn)
-				}
-				innerWg.Wait()
-				metadataSetQueue(conn, userHexKey)
-			}(d)
-		}
+				innerWg.Add(1)
+				go func(url string, conn *amqp.Connection) {
+					defer innerWg.Done()
+					relay.ConnectToRelay(url, finished, "user_metadata", userHexKey)
+					userNotes(ctx, cancel, url, userHexKey)
+				}(url, conn)
+			}
+			innerWg.Wait()
+			metadataSetQueue(conn, userHexKey)
+		}(d)
 	}
 	// outerWg.Wait()
 
