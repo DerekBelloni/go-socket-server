@@ -80,13 +80,18 @@ func createNote(relayUrls []string) {
 	<-forever
 }
 
-func userNotes(ctx context.Context, cancel context.CancelFunc, relayUrl string, userHexKey string) {
-	var noteWg sync.WaitGroup
-	noteWg.Add(1)
-	go func(relayUrl string) {
-		defer noteWg.Done()
-		relay.GetUserNotes(ctx, cancel, relayUrl, userHexKey)
-	}(relayUrl)
+func userNotes(relayUrls []string, userHexKey string) {
+	fmt.Println("stepping in to user notes")
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	for _, url := range relayUrls {
+		var noteWg sync.WaitGroup
+		noteWg.Add(1)
+		go func(url string) {
+			defer noteWg.Done()
+			relay.GetUserNotes(ctx, cancel, url, userHexKey)
+		}(url)
+	}
 }
 
 func metadataSetQueue(conn *amqp.Connection, userHexKey string) {
@@ -174,35 +179,29 @@ func userMetadataQueue(relayUrls []string) {
 	}
 
 	var innerWg sync.WaitGroup
-	// var outerWg sync.WaitGroup
 
 	go func() {
 		for relayUrl := range finished {
 			fmt.Printf("Finished processing relay: %s\n", relayUrl)
 		}
 	}()
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 
-	// need to alter this check so I am finding the queue by its name ON the msgs
-	// maybe check the msgs is not empty
 	for d := range msgs {
 		go func(d amqp.Delivery) {
 			userHexKey := string(d.Body)
 			for _, url := range relayUrls {
-
 				innerWg.Add(1)
 				go func(url string, conn *amqp.Connection) {
 					defer innerWg.Done()
 					relay.ConnectToRelay(url, finished, "user_metadata", userHexKey)
-					userNotes(ctx, cancel, url, userHexKey)
 				}(url, conn)
 			}
 			innerWg.Wait()
+			fmt.Println("passed innerWg wait!")
 			metadataSetQueue(conn, userHexKey)
+			userNotes(relayUrls, userHexKey)
 		}(d)
 	}
-	// outerWg.Wait()
 
 	log.Printf("[*] Waiting for messages. To exit press CTRL+C")
 	<-forever
@@ -217,7 +216,6 @@ func main() {
 		"wss://relay.nostr.band",
 	}
 
-	// finished := make(chan string)
 	var forever chan struct{}
 
 	// Queue: User Metadata

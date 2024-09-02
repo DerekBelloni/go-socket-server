@@ -35,7 +35,9 @@ func generateRandomString(length int) (string, error) {
 }
 
 func handleUserNotes(ctx context.Context, cancel context.CancelFunc, conn *websocket.Conn, relayUrl string, userHexKey string) {
+	fmt.Println("inside handle user notes")
 	defer conn.Close()
+	defer cancel()
 
 	subscriptionID, err := generateRandomString(16)
 	if err != nil {
@@ -65,72 +67,186 @@ func handleUserNotes(ctx context.Context, cancel context.CancelFunc, conn *webso
 	for {
 		_, message, err := conn.ReadMessage()
 		if err != nil {
-			fmt.Println("Apple")
+			fmt.Println("Error reading message from relay")
 			break
 		}
 
 		var userNotes []interface{}
 		if err := json.Unmarshal(message, &userNotes); err != nil {
-			fmt.Println("Banana")
+			fmt.Println("Error unmarshalling relay message for user notes")
 			continue
 		}
 
-		if len(userNotes) == 0 || (len(userNotes) > 0 && (userNotes[0] == "EOSE" || userNotes[1] == "NOTICE")) {
-			fmt.Println("Failed note length check")
-			cancel()
+		if len(userNotes) < 2 {
+			continue
+		}
+		fmt.Printf("passed length check")
+
+		messageType, ok := userNotes[0].(string)
+		if !ok {
+			continue
+		}
+
+		switch messageType {
+		case "EVENT":
+			conn, err := amqp.Dial("amqp://guest:guest@localhost:5672/")
+			if err != nil {
+				fmt.Println("Failed to connect to RabbitMQ", err)
+			}
+			defer conn.Close()
+
+			channel, err := conn.Channel()
+			if err != nil {
+				fmt.Println("Failed to open a channel")
+			}
+
+			defer channel.Close()
+
+			queue, err := channel.QueueDeclare(
+				"user_notes",
+				false,
+				false,
+				false,
+				false,
+				nil,
+			)
+
+			if err != nil {
+				fmt.Println("Failed to declare a queue", err)
+			}
+
+			jsonUserNotes, err := json.Marshal(userNotes)
+			if err != nil {
+				fmt.Println("Failed to marshall user notes into JSON")
+				continue
+			}
+
+			err = channel.PublishWithContext(ctx,
+				"",
+				queue.Name,
+				false,
+				false,
+				amqp.Publishing{
+					ContentType: "text/plain",
+					Body:        []byte(jsonUserNotes),
+				})
+
+			if err != nil {
+				fmt.Printf("Failed to send notes with rabbitmq: %v\n", err)
+			} else {
+				fmt.Printf("User notes sent to rabbitmq\n")
+				cancel()
+			}
+
+		case "EOSE":
+			fmt.Println("End of stored events")
 			return
-		}
 
-		conn, err := amqp.Dial("amqp://guest:guest@localhost:5672/")
-		if err != nil {
-			fmt.Println("Failed to connect to RabbitMQ", err)
-		}
-		defer conn.Close()
-
-		channel, err := conn.Channel()
-		if err != nil {
-			fmt.Println("Failed to open a channel")
-		}
-
-		defer channel.Close()
-
-		queue, err := channel.QueueDeclare(
-			"user_notes",
-			false,
-			false,
-			false,
-			false,
-			nil,
-		)
-
-		if err != nil {
-			fmt.Println("Failed to declare a queue", err)
-		}
-
-		jsonUserNotes, err := json.Marshal(userNotes)
-		if err != nil {
-			fmt.Println("Failed to marshall user notes into JSON")
-			continue
-		}
-
-		err = channel.PublishWithContext(ctx,
-			"",
-			queue.Name,
-			false,
-			false,
-			amqp.Publishing{
-				ContentType: "text/plain",
-				Body:        []byte(jsonUserNotes),
-			})
-
-		if err != nil {
-			fmt.Printf("Failed to send notes with rabbitmq: %v\n", err)
-		} else {
-			fmt.Printf("User notes sent to rabbitmq\n")
-			cancel()
+		case "NOTICE":
+			fmt.Printf("Received NOTICE: %v\n", userNotes[1])
+		default:
+			fmt.Printf("Unknown message type: %s\n", messageType)
 		}
 	}
 }
+
+// func handleUserNotes(ctx context.Context, cancel context.CancelFunc, conn *websocket.Conn, relayUrl string, userHexKey string) {
+// 	defer conn.Close()
+
+// 	subscriptionID, err := generateRandomString(16)
+// 	if err != nil {
+// 		log.Fatal("Error generating a subscription id: ", err)
+// 	}
+
+// 	subscriptionRequest := []interface{}{
+// 		"REQ",
+// 		subscriptionID,
+// 		map[string]interface{}{
+// 			"kinds":   []int{1},
+// 			"authors": []string{userHexKey},
+// 			"limit":   100,
+// 		},
+// 	}
+
+// 	subscriptionRequestJSON, err := json.Marshal(subscriptionRequest)
+// 	if err != nil {
+// 		log.Fatal("Error marshalling subscription request: ", err)
+// 	}
+
+// 	err = conn.WriteMessage(websocket.TextMessage, subscriptionRequestJSON)
+// 	if err != nil {
+// 		log.Fatal("Error sending subscription request: ", err)
+// 	}
+
+// 	for {
+// 		_, message, err := conn.ReadMessage()
+// 		if err != nil {
+// 			fmt.Println("Error reading message from relay")
+// 			break
+// 		}
+
+// 		var userNotes []interface{}
+// 		if err := json.Unmarshal(message, &userNotes); err != nil {
+// 			fmt.Println("Error unmarshalling relay message for user notes")
+// 			continue
+// 		}
+
+// 		if len(userNotes) == 0 || (len(userNotes) > 0 && (userNotes[0] == "EOSE" || userNotes[1] == "NOTICE")) {
+// 			fmt.Println("Failed note length check")
+// 			cancel()
+// 			return
+// 		}
+
+// 		conn, err := amqp.Dial("amqp://guest:guest@localhost:5672/")
+// 		if err != nil {
+// 			fmt.Println("Failed to connect to RabbitMQ", err)
+// 		}
+// 		defer conn.Close()
+
+// 		channel, err := conn.Channel()
+// 		if err != nil {
+// 			fmt.Println("Failed to open a channel")
+// 		}
+
+// 		defer channel.Close()
+
+// 		queue, err := channel.QueueDeclare(
+// 			"user_notes",
+// 			false,
+// 			false,
+// 			false,
+// 			false,
+// 			nil,
+// 		)
+
+// 		if err != nil {
+// 			fmt.Println("Failed to declare a queue", err)
+// 		}
+
+// 		jsonUserNotes, err := json.Marshal(userNotes)
+// 		if err != nil {
+// 			fmt.Println("Failed to marshall user notes into JSON")
+// 			continue
+// 		}
+
+// 		err = channel.PublishWithContext(ctx,
+// 			"",
+// 			queue.Name,
+// 			false,
+// 			false,
+// 			amqp.Publishing{
+// 				ContentType: "text/plain",
+// 				Body:        []byte(jsonUserNotes),
+// 			})
+
+// 		if err != nil {
+// 			fmt.Printf("Failed to send notes with rabbitmq: %v\n", err)
+// 		} else {
+// 			fmt.Printf("User notes sent to rabbitmq\n")
+// 			cancel()
+// 		}
+// 	}
+// }
 
 func handleNewNote(conn *websocket.Conn, relayUrl string, newNote data.NewNote, noteFinished chan<- string) {
 	// what are you doing here?
@@ -249,13 +365,6 @@ func handleRelayConnection(conn *websocket.Conn, relayUrl string, finished chan<
 	for {
 		_, message, err := conn.ReadMessage()
 		if err != nil {
-			// if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
-			// 	log.WithFields(logrus.Fields{
-			// 		"error": err,
-			// 		"relay": relayUrl,
-			// 	}).Error("WebSocket Error")
-			// 	break
-			// }
 			log.WithFields(logrus.Fields{
 				"error": err,
 				"relay": relayUrl,
@@ -290,79 +399,6 @@ func handleRelayConnection(conn *websocket.Conn, relayUrl string, finished chan<
 
 		redis.HandleMetaData(jsonMetadata, finished, relayUrl, userHexKey, conn)
 	}
-
-	// var batch []json.RawMessage
-	// var log = logrus.New()
-	// // var reactionEvents []interface{}
-
-	// eventChan := make(chan json.RawMessage, 1000)
-	// doneChan := make(chan struct{})
-
-	// go func() {
-	// 	for event := range eventChan {
-	// 		batch = append(batch, event)
-	// 		if len(batch) >= 1000 {
-	// 			batchJSON, err := json.Marshal(batch)
-	// 			if err != nil {
-	// 				log.Fatal("Error marshalling the batched relay data: ", err)
-	// 			}
-	// 			redis.HandleRedis(batchJSON, relayUrl, finished, "banana")
-	// 			break
-	// 		}
-	// 	}
-	// 	doneChan <- struct{}{}
-	// }()
-	// messageCount := 0
-
-	// for messageCount < 1000 {
-	// 	fmt.Printf("message count: %d", messageCount)
-	// 	_, message, err := conn.ReadMessage()
-	// 	if err != nil {
-	// 		// this error handling can get its own method
-	// 		if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
-	// 			log.WithFields(logrus.Fields{
-	// 				"error": err,
-	// 				"relay": relayUrl,
-	// 			}).Error("WebSocket Error")
-	// 			break
-	// 		}
-	// 		log.WithFields(logrus.Fields{
-	// 			"error": err,
-	// 			"relay": relayUrl,
-	// 		}).Error("WebSocket read error")
-	// 		break
-	// 	}
-
-	// 	if len(message) == 0 {
-	// 		log.Warn("Received an empty message")
-	// 		continue
-	// 	}
-
-	// 	var rMessage []interface{}
-	// 	if err := json.Unmarshal(message, &rMessage); err != nil {
-	// 		log.WithFields(logrus.Fields{
-	// 			"error":   err,
-	// 			"message": string(message),
-	// 		}).Error("Error unmarshalling JSON")
-	// 		continue
-	// 	}
-
-	// 	if len(rMessage) > 2 {
-	// 		spew.Dump("rmessage: ", rMessage)
-	// 		eventMap, ok := rMessage[2].(map[string]interface{})
-	// 		if !ok {
-	// 			continue
-	// 		}
-
-	// 		kind, ok := eventMap["kind"].(float64)
-	// 		if !ok || int(kind) != 1 {
-	// 			continue
-	// 		}
-	// 	}
-	// }
-
-	// close(eventChan)
-	// <-doneChan
 }
 
 // func extractETag(tag []interface{}) (bool, string) {
