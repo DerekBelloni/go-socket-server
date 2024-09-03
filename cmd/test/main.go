@@ -81,7 +81,6 @@ func createNote(relayUrls []string) {
 }
 
 func userNotes(relayUrls []string, userHexKey string) {
-	fmt.Println("stepping in to user notes")
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	for _, url := range relayUrls {
@@ -197,7 +196,6 @@ func userMetadataQueue(relayUrls []string) {
 				}(url, conn)
 			}
 			innerWg.Wait()
-			fmt.Println("passed innerWg wait!")
 			metadataSetQueue(conn, userHexKey)
 			userNotes(relayUrls, userHexKey)
 		}(d)
