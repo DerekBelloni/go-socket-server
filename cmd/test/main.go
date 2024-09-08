@@ -205,6 +205,18 @@ func userMetadataQueue(relayUrls []string) {
 	<-forever
 }
 
+func classifiedListings(relayUrls []string) {
+	var innerWg sync.WaitGroup
+	for _, url := range relayUrls {
+		innerWg.Add(1)
+		go func(relayUrl string) {
+			defer innerWg.Done()
+			relay.GetClassifiedListings(relayUrl)
+		}(url)
+		innerWg.Wait()
+	}
+}
+
 func main() {
 	relayUrls := []string{
 		"wss://relay.damus.io",
@@ -218,9 +230,11 @@ func main() {
 
 	// Queue: User Metadata
 	go userMetadataQueue(relayUrls)
-
 	// Queue: Posting a Note
 	go createNote(relayUrls)
 
+	go classifiedListings(relayUrls)
+
+	// not sure if I need a blocking channel here
 	<-forever
 }

@@ -37,3 +37,13 @@ func GetUserNotes(ctx context.Context, cancel context.CancelFunc, relayUrl strin
 
 	handleUserNotes(ctx, cancel, conn, relayUrl, userHexKey)
 }
+
+func GetClassifiedListings(relayUrl string) {
+	conn, _, err := websocket.DefaultDialer.Dial(relayUrl, nil)
+	if err != nil {
+		log.Fatal("Dial error: ", err)
+	}
+	defer conn.Close()
+
+	handleClassifiedListings(conn, relayUrl)
+}
