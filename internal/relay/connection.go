@@ -55,5 +55,5 @@ func GetFollowList(ctx context.Context, cancel context.CancelFunc, relayUrl stri
 	}
 	defer conn.Close()
 
-	handleFollowList(ctx, conn, relayUrl, userHexKey)
+	handleFollowList(ctx, cancel, conn, relayUrl, userHexKey)
 }
