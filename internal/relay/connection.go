@@ -47,3 +47,13 @@ func GetClassifiedListings(relayUrl string) {
 
 	handleClassifiedListings(conn, relayUrl)
 }
+
+func GetFollowList(ctx context.Context, cancel context.CancelFunc, relayUrl string, userHexKey string) {
+	conn, _, err := websocket.DefaultDialer.Dial(relayUrl, nil)
+	if err != nil {
+		log.Fatal("Dial error: ", err)
+	}
+	defer conn.Close()
+
+	handleFollowList(ctx, conn, relayUrl, userHexKey)
+}

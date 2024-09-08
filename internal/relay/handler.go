@@ -18,13 +18,6 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-var (
-	damusRelay  []string
-	purpleRelay []string
-	nosRelay    []string
-	primalRelay []string
-)
-
 func generateRandomString(length int) (string, error) {
 	bytes := make([]byte, length)
 	_, err := rand.Read(bytes)
@@ -34,9 +27,122 @@ func generateRandomString(length int) (string, error) {
 
 	return hex.EncodeToString(bytes), nil
 }
+func handleFollowList(ctx context.Context, cancel context.CancelFunc, conn *websocket.Conn, relayUrl string, userHexKey string) {
+	defer conn.Close()
+
+	subscriptionID, err := generateRandomString(16)
+	if err != nil {
+		log.Fatal("Error generating a subscription id: ", err)
+	}
+
+	subscriptionRequest := []interface{}{
+		"REQ",
+		subscriptionID,
+		map[string]interface{}{
+			"kinds": []int{3},
+			"limit": 1,
+			"tags": [][]string{
+				{"p", userHexKey, relayUrl},
+			},
+		},
+	}
+
+	subscriptionRequestJSON, err := json.Marshal(subscriptionRequest)
+	if err != nil {
+		log.Fatal("Error marshalling subscription request: ", err)
+	}
+
+	err = conn.WriteMessage(websocket.TextMessage, subscriptionRequestJSON)
+	if err != nil {
+		log.Fatal("Error marshalling subscription request: ", err)
+	}
+
+	for {
+		_, message, err := conn.ReadMessage()
+		if err != nil {
+			logrus.New().WithFields(logrus.Fields{
+				"error": err,
+				"relay": relayUrl,
+			}).Warn("Error sending socket close message")
+			conn.Close()
+		}
+
+		var followMessage []interface{}
+		if err := json.Unmarshal(message, &followMessage); err != nil {
+			logrus.New().WithFields(logrus.Fields{
+				"error": err,
+				"relay": relayUrl,
+			}).Warn("Error sending socket close message")
+			conn.Close()
+		}
+
+		fmt.Printf("follow list: %v, relay: %v\n", followMessage[0], relayUrl)
+
+		if len(followMessage) <= 0 {
+			continue
+		}
+
+		messageType, ok := followMessage[0].(string)
+		if !ok {
+			continue
+		}
+
+		switch messageType {
+		case "EVENT":
+			conn, err := amqp.Dial("amqp://guest:guest@localhost:5672/")
+			if err != nil {
+				fmt.Println("Failed to connect to RabbitMQ", err)
+			}
+			defer conn.Close()
+
+			channel, err := conn.Channel()
+			if err != nil {
+				fmt.Println("Failed to open a channel")
+			}
+
+			defer channel.Close()
+
+			queue, err := channel.QueueDeclare(
+				"follow_list",
+				false,
+				false,
+				false,
+				false,
+				nil,
+			)
+
+			if err != nil {
+				fmt.Println("Failed to declare a queue", err)
+			}
+
+			jsonUserNotes, err := json.Marshal(followMessage)
+			if err != nil {
+				fmt.Println("Failed to marshall follow list into JSON")
+				continue
+			}
+
+			err = channel.PublishWithContext(ctx,
+				"",
+				queue.Name,
+				false,
+				false,
+				amqp.Publishing{
+					ContentType: "text/plain",
+					Body:        []byte(jsonUserNotes),
+				})
+
+			if err != nil {
+				fmt.Printf("Failed to send follow list with rabbitmq: %v\n", err)
+			} else {
+				fmt.Printf("User notes sent to rabbitmq\n")
+				cancel()
+			}
+
+		}
+	}
+}
 
 func handleClassifiedListings(conn *websocket.Conn, relayUrl string) {
-	fmt.Println("BANANA")
 	defer conn.Close()
 
 	subscriptionID, err := generateRandomString(16)
@@ -95,6 +201,7 @@ func handleUserNotes(ctx context.Context, cancel context.CancelFunc, conn *webso
 		log.Fatal("Error generating a subscription id: ", err)
 	}
 
+	// I can abstract subscriptions into methods on types I make for different nostr request types
 	subscriptionRequest := []interface{}{
 		"REQ",
 		subscriptionID,
@@ -353,165 +460,3 @@ func handleRelayConnection(conn *websocket.Conn, relayUrl string, finished chan<
 		redis.HandleMetaData(jsonMetadata, finished, relayUrl, userHexKey, conn)
 	}
 }
-
-// func extractETag(tag []interface{}) (bool, string) {
-// 	if len(tag) < 2 {
-// 		return false, ""
-// 	}
-
-// 	key, ok := tag[0].(string)
-// 	if !ok || key != "e" {
-// 		return false, ""
-// 	}
-
-// 	eventID, ok := tag[1].(string)
-// 	if !ok {
-// 		return false, ""
-// 	}
-
-// 	return true, eventID
-// }
-
-// func processRelay(relaySlice *[]string, eventID string) bool {
-// 	if len(*relaySlice) < 50 {
-// 		*relaySlice = append(*relaySlice, eventID)
-// 		return true
-// 	}
-// 	spew.Dump("relay slice: ", relaySlice)
-// 	return false
-// }
-
-// func processEvent(eventArray []interface{}, relayUrl string) bool {
-// 	for _, tag := range eventArray {
-// 		tagArray, ok := tag.([]interface{})
-// 		if !ok {
-// 			fmt.Println("Skipping non-array tag:", tag)
-// 			continue
-// 		}
-// 		if isE, eventID := extractETag(tagArray); isE {
-// 			eventID = strings.TrimSpace(eventID)
-// 			if eventID == "" {
-// 				continue
-// 			}
-// 			switch relay := relayUrl; relay {
-// 			case "wss://relay.damus.io":
-// 				return processRelay(&damusRelay, eventID)
-// 			case "wss://nos.lol":
-// 				return processRelay(&nosRelay, eventID)
-// 			case "wss://purplerelay.com":
-// 				return processRelay(&purpleRelay, eventID)
-// 			case "wss://relay.primal.net":
-// 				return processRelay(&primalRelay, eventID)
-// 			}
-// 		}
-// 	}
-// 	return true
-// }
-
-// func parseReactionEvents(reactionEvents []interface{}, relayUrl string) bool {
-// 	for _, event := range reactionEvents {
-// 		if eventArray, ok := event.([]interface{}); ok {
-// 			shouldContinue := processEvent(eventArray, relayUrl)
-// 			if !shouldContinue {
-// 				return false
-// 			}
-// 		}
-// 	}
-// 	return true
-// }
-
-// func retrieveReactionEvents(relayUrl string, finished chan<- string) {
-// 	conn, _, err := websocket.DefaultDialer.Dial(relayUrl, nil)
-// 	if err != nil {
-// 		log.Fatal("Dial error: ", err)
-// 	}
-
-// 	defer conn.Close()
-
-// 	subscriptionID, err := generateRandomString(16)
-// 	if err != nil {
-// 		log.Fatal("Error generating a subscription id: ", err)
-// 	}
-
-// 	var relaySlice *[]string
-
-// 	switch relayUrl {
-// 	case "wss://relay.damus.io":
-// 		relaySlice = &damusRelay
-// 	case "wss://nos.lol":
-// 		relaySlice = &nosRelay
-// 	case "wss://purplerelay.com":
-// 		relaySlice = &purpleRelay
-// 	case "wss://relay.primal.net":
-// 		relaySlice = &primalRelay
-// 	default:
-// 		log.Printf("Uknown relay URL: %s\n", relayUrl)
-// 		return
-// 	}
-// 	fmt.Printf("length: %d\n", len(damusRelay))
-// 	subscriptionRequest := []interface{}{
-// 		"REQ",
-// 		subscriptionID,
-// 		map[string]interface{}{
-// 			"ids": relaySlice,
-// 		},
-// 	}
-
-// 	subscriptionRequestJSON, err := json.Marshal(subscriptionRequest)
-// 	if err != nil {
-// 		log.Fatal("Error sending subscription request: ", err)
-// 	}
-
-// 	err = conn.WriteMessage(websocket.TextMessage, subscriptionRequestJSON)
-// 	if err != nil {
-// 		log.Fatal("Error sending subscription")
-// 	}
-
-// 	fmt.Println("Subscription request sent")
-
-// 	var batch []json.RawMessage
-// 	var log = logrus.New()
-
-// 	for {
-// 		_, message, err := conn.ReadMessage()
-// 		if err != nil {
-// 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
-// 				log.WithFields(logrus.Fields{
-// 					"error": err,
-// 				}).Error("WebSocket read error")
-// 			}
-// 			break
-// 		}
-
-// 		if len(message) == 0 {
-// 			log.Warn("Received an empty message")
-// 			continue
-// 		}
-
-// 		var rMessage []interface{}
-// 		if err := json.Unmarshal(message, &rMessage); err != nil {
-// 			log.WithFields(logrus.Fields{
-// 				"error":   err,
-// 				"message": string(message),
-// 			}).Error("Error unmarshalling JSON")
-// 			continue
-// 		}
-
-// 		if len(rMessage) > 2 {
-// 			_, ok := rMessage[0].(string)
-// 			if !ok {
-// 				continue
-// 			}
-
-// 			batch = append(batch, message)
-// 			batchJson, err := json.Marshal(batch)
-// 			if err != nil {
-// 				fmt.Println("Error marshalling the batched relay data for trending events: ", err)
-// 			}
-// 			if len(batchJson) >= 25 {
-// 				redis.HandleRedis(batchJson, relayUrl, finished, "trending")
-// 				break
-// 			}
-// 		}
-// 	}
-// }

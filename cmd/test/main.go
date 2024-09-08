@@ -198,6 +198,7 @@ func userMetadataQueue(relayUrls []string) {
 			innerWg.Wait()
 			metadataSetQueue(conn, userHexKey)
 			userNotes(relayUrls, userHexKey)
+			followList(relayUrls, userHexKey)
 		}(d)
 	}
 
@@ -217,6 +218,19 @@ func classifiedListings(relayUrls []string) {
 	}
 }
 
+func followList(relayUrls []string, userHexKey string) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	var wg sync.WaitGroup
+	for _, relayUrl := range relayUrls {
+		wg.Add(1)
+		go func(relayUrl string) {
+			defer wg.Done()
+			relay.GetFollowList(ctx, cancel, relayUrl, userHexKey)
+		}(relayUrl)
+	}
+}
+
 func main() {
 	relayUrls := []string{
 		"wss://relay.damus.io",
@@ -233,7 +247,7 @@ func main() {
 	// Queue: Posting a Note
 	go createNote(relayUrls)
 
-	go classifiedListings(relayUrls)
+	// go classifiedListings(relayUrls)
 
 	// not sure if I need a blocking channel here
 	<-forever
