@@ -18,6 +18,14 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+func clearWebSocketBuffer(conn *websocket.Conn) {
+	for {
+		if _, _, err := conn.ReadMessage(); err != nil {
+			break
+		}
+	}
+}
+
 func generateRandomString(length int) (string, error) {
 	bytes := make([]byte, length)
 	_, err := rand.Read(bytes)
@@ -28,7 +36,7 @@ func generateRandomString(length int) (string, error) {
 	return hex.EncodeToString(bytes), nil
 }
 func handleFollowList(ctx context.Context, cancel context.CancelFunc, conn *websocket.Conn, relayUrl string, userHexKey string) {
-	defer conn.Close()
+	// defer conn.Close()
 
 	subscriptionID, err := generateRandomString(16)
 	if err != nil {
@@ -63,7 +71,7 @@ func handleFollowList(ctx context.Context, cancel context.CancelFunc, conn *webs
 			logrus.New().WithFields(logrus.Fields{
 				"error": err,
 				"relay": relayUrl,
-			}).Warn("Error sending socket close message")
+			}).Warn("Error sending socket close message, follow list")
 			conn.Close()
 		}
 
@@ -72,7 +80,7 @@ func handleFollowList(ctx context.Context, cancel context.CancelFunc, conn *webs
 			logrus.New().WithFields(logrus.Fields{
 				"error": err,
 				"relay": relayUrl,
-			}).Warn("Error sending socket close message")
+			}).Warn("Error sending socket close message, follow listwd")
 			conn.Close()
 		}
 
@@ -137,13 +145,20 @@ func handleFollowList(ctx context.Context, cancel context.CancelFunc, conn *webs
 				fmt.Printf("User notes sent to rabbitmq\n")
 				cancel()
 			}
+		case "EOSE":
+			fmt.Println("End of stored events")
+			return
 
+		case "NOTICE":
+			fmt.Printf("Received NOTICE: %v\n", followMessage[1])
+		default:
+			fmt.Printf("Unknown message type: %s\n", messageType)
 		}
 	}
 }
 
 func handleClassifiedListings(conn *websocket.Conn, relayUrl string) {
-	defer conn.Close()
+	// defer conn.Close()
 
 	subscriptionID, err := generateRandomString(16)
 	if err != nil {
@@ -183,7 +198,7 @@ func handleClassifiedListings(conn *websocket.Conn, relayUrl string) {
 			logrus.New().WithFields(logrus.Fields{
 				"error": err,
 				"relay": relayUrl,
-			}).Warn("Error sending socket close message")
+			}).Warn("Error sending socket close message, classified listings")
 			conn.Close()
 		}
 
@@ -192,13 +207,13 @@ func handleClassifiedListings(conn *websocket.Conn, relayUrl string) {
 }
 
 func handleUserNotes(ctx context.Context, cancel context.CancelFunc, conn *websocket.Conn, relayUrl string, userHexKey string) {
-	fmt.Println("inside handle user notes")
-	defer conn.Close()
+	// defer conn.Close()
 	defer cancel()
+	log := logrus.WithField("relay", relayUrl)
 
 	subscriptionID, err := generateRandomString(16)
 	if err != nil {
-		log.Fatal("Error generating a subscription id: ", err)
+		log.Error("Error generating a subscription id: ", err)
 	}
 
 	// I can abstract subscriptions into methods on types I make for different nostr request types
@@ -214,12 +229,12 @@ func handleUserNotes(ctx context.Context, cancel context.CancelFunc, conn *webso
 
 	subscriptionRequestJSON, err := json.Marshal(subscriptionRequest)
 	if err != nil {
-		log.Fatal("Error marshalling subscription request: ", err)
+		log.Error("Error marshalling subscription request: ", err)
 	}
 
 	err = conn.WriteMessage(websocket.TextMessage, subscriptionRequestJSON)
 	if err != nil {
-		log.Fatal("Error sending subscription request: ", err)
+		log.Error("Error sending subscription request, user notes: ", err)
 	}
 
 	for {
@@ -251,7 +266,7 @@ func handleUserNotes(ctx context.Context, cancel context.CancelFunc, conn *webso
 			if err != nil {
 				fmt.Println("Failed to connect to RabbitMQ", err)
 			}
-			defer conn.Close()
+			// defer conn.Close()
 
 			channel, err := conn.Channel()
 			if err != nil {
@@ -272,7 +287,7 @@ func handleUserNotes(ctx context.Context, cancel context.CancelFunc, conn *webso
 			if err != nil {
 				fmt.Println("Failed to declare a queue", err)
 			}
-
+			spew.Dump("user notes: ", userNotes)
 			jsonUserNotes, err := json.Marshal(userNotes)
 			if err != nil {
 				fmt.Println("Failed to marshall user notes into JSON")
@@ -355,6 +370,7 @@ func handleNewNote(conn *websocket.Conn, relayUrl string, newNote data.NewNote, 
 	if err != nil {
 		log.Fatal("Error verifying signature: ", err)
 	}
+
 	if !isValid {
 		log.Fatal("Generated signature is not valid")
 	}
@@ -378,7 +394,7 @@ func handleNewNote(conn *websocket.Conn, relayUrl string, newNote data.NewNote, 
 			log.WithFields(logrus.Fields{
 				"error": err,
 				"relay": relayUrl,
-			}).Error("WebSocket read error")
+			}).Error("WebSocket read error, new note")
 			break
 		}
 		var newNoteMsg []interface{}
@@ -387,17 +403,17 @@ func handleNewNote(conn *websocket.Conn, relayUrl string, newNote data.NewNote, 
 			log.Fatal("Error unmarshalling json: ", err)
 		}
 		fmt.Printf("new message: %v\n", newNoteMsg)
-		// need to send something back through the channel to indicate the event was susccessful or not
 	}
 }
 
 // I can probably hand in a connection type here as well
 func handleRelayConnection(conn *websocket.Conn, relayUrl string, finished chan<- string, userHexKey string) {
-	defer conn.Close()
+	// defer conn.Close()
+	log := logrus.WithField("relay", relayUrl)
 
 	subscriptionID, err := generateRandomString(16)
 	if err != nil {
-		log.Fatal("Error generating a subscription id: ", err)
+		log.Error("Error generating a subscription id: ", err)
 	}
 
 	subscriptionRequest := []interface{}{
@@ -411,52 +427,53 @@ func handleRelayConnection(conn *websocket.Conn, relayUrl string, finished chan<
 
 	subscriptionRequestJSON, err := json.Marshal(subscriptionRequest)
 	if err != nil {
-		log.Fatal("Error marshalling subscription request: ", err)
+		log.Error("Error marshalling subscription request: ", err)
 	}
 
 	err = conn.WriteMessage(websocket.TextMessage, subscriptionRequestJSON)
 	if err != nil {
-		log.Fatal("Error sending subscription request: ", err)
+		log.Error("Error sending subscription request: ", err)
 	}
 
-	var log = logrus.New()
-
 	// the loop for connecting, reading and writing can probably be abstracted out into its own method
-	for {
-		_, message, err := conn.ReadMessage()
-		if err != nil {
-			log.WithFields(logrus.Fields{
-				"error": err,
-				"relay": relayUrl,
-			}).Error("WebSocket read error")
+	if userHexKey != "" {
+		for {
+			_, message, err := conn.ReadMessage()
+			if err != nil {
+				log.WithFields(logrus.Fields{
+					"error": err,
+					"relay": relayUrl,
+				}).Error("WebSocket read error, main relay connection")
+				break
+			}
+
+			var metadataMessage []interface{}
+			if err := json.Unmarshal(message, &metadataMessage); err != nil {
+				log.WithFields(logrus.Fields{
+					"error":   err,
+					"message": string(message),
+				}).Error("Error unmarshalling JSON")
+				continue
+			}
+
+			var jsonMetadata []byte
+
+			if len(metadataMessage) == 0 || metadataMessage[0] == "EOSE" {
+				fmt.Println("Received an empty message or end of stream")
+				continue
+			}
+
+			if metadataMessage[0] != "EOSE" {
+				jsonMetadata, err = json.Marshal(metadataMessage)
+			}
+
+			if err != nil {
+				log.Fatal("Error marshalling user metadata into JSON", err)
+				break
+			}
+
+			redis.HandleMetaData(jsonMetadata, finished, relayUrl, userHexKey, conn)
 			break
 		}
-
-		var metadataMessage []interface{}
-		if err := json.Unmarshal(message, &metadataMessage); err != nil {
-			log.WithFields(logrus.Fields{
-				"error":   err,
-				"message": string(message),
-			}).Error("Error unmarshalling JSON")
-			continue
-		}
-
-		var jsonMetadata []byte
-
-		if len(metadataMessage) == 0 || metadataMessage[0] == "EOSE" {
-			fmt.Println("Received an empty message or end of stream")
-			continue
-		}
-
-		if metadataMessage[0] != "EOSE" {
-			jsonMetadata, err = json.Marshal(metadataMessage)
-		}
-
-		if err != nil {
-			log.Fatal("Error marshalling user metadata into JSON", err)
-			break
-		}
-
-		redis.HandleMetaData(jsonMetadata, finished, relayUrl, userHexKey, conn)
 	}
 }

@@ -135,6 +135,7 @@ func metadataSetQueue(conn *amqp.Connection, userHexKey string) {
 }
 
 func userMetadataQueue(relayUrls []string) {
+	fmt.Println("Test")
 	forever := make(chan struct{})
 	finished := make(chan string)
 
@@ -198,7 +199,7 @@ func userMetadataQueue(relayUrls []string) {
 			innerWg.Wait()
 			metadataSetQueue(conn, userHexKey)
 			userNotes(relayUrls, userHexKey)
-			followList(relayUrls, userHexKey)
+			// followList(relayUrls, userHexKey)
 		}(d)
 	}
 
