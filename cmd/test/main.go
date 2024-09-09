@@ -94,6 +94,7 @@ func userNotes(relayUrls []string, userHexKey string) {
 }
 
 func metadataSetQueue(conn *amqp.Connection, userHexKey string) {
+	fmt.Println("apple")
 	channel, err := conn.Channel()
 	if err != nil {
 		fmt.Println("Failed to open a channel")
@@ -135,7 +136,6 @@ func metadataSetQueue(conn *amqp.Connection, userHexKey string) {
 }
 
 func userMetadataQueue(relayUrls []string) {
-	fmt.Println("Test")
 	forever := make(chan struct{})
 	finished := make(chan string)
 
@@ -193,12 +193,12 @@ func userMetadataQueue(relayUrls []string) {
 				innerWg.Add(1)
 				go func(url string, conn *amqp.Connection) {
 					defer innerWg.Done()
-					relay.ConnectToRelay(url, finished, "user_metadata", userHexKey)
+					relay.GetUserMetadata(url, finished, "user_metadata", userHexKey)
 				}(url, conn)
 			}
 			innerWg.Wait()
 			metadataSetQueue(conn, userHexKey)
-			userNotes(relayUrls, userHexKey)
+			// userNotes(relayUrls, userHexKey)
 			// followList(relayUrls, userHexKey)
 		}(d)
 	}
@@ -246,7 +246,7 @@ func main() {
 	// Queue: User Metadata
 	go userMetadataQueue(relayUrls)
 	// Queue: Posting a Note
-	go createNote(relayUrls)
+	// go createNote(relayUrls)
 
 	// go classifiedListings(relayUrls)
 

@@ -18,14 +18,6 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-func clearWebSocketBuffer(conn *websocket.Conn) {
-	for {
-		if _, _, err := conn.ReadMessage(); err != nil {
-			break
-		}
-	}
-}
-
 func generateRandomString(length int) (string, error) {
 	bytes := make([]byte, length)
 	_, err := rand.Read(bytes)
@@ -159,10 +151,11 @@ func handleFollowList(ctx context.Context, cancel context.CancelFunc, conn *webs
 
 func handleClassifiedListings(conn *websocket.Conn, relayUrl string) {
 	// defer conn.Close()
+	log := logrus.WithField("relay", relayUrl)
 
 	subscriptionID, err := generateRandomString(16)
 	if err != nil {
-		log.Fatal("Error generating a subscription id: ", err)
+		log.Error("Error generating a subscription id: ", err)
 	}
 
 	subscriptionRequest := []interface{}{
@@ -176,12 +169,12 @@ func handleClassifiedListings(conn *websocket.Conn, relayUrl string) {
 
 	subscriptionRequestJSON, err := json.Marshal(subscriptionRequest)
 	if err != nil {
-		log.Fatal("Error marshalling subscription request: ", err)
+		log.Error("Error marshalling subscription request: ", err)
 	}
 
 	err = conn.WriteMessage(websocket.TextMessage, subscriptionRequestJSON)
 	if err != nil {
-		log.Fatal("Error sending subscription request: ", err)
+		log.Error("Error sending subscription request, classified listing: ", err)
 	}
 	for {
 		_, message, err := conn.ReadMessage()
@@ -207,7 +200,7 @@ func handleClassifiedListings(conn *websocket.Conn, relayUrl string) {
 }
 
 func handleUserNotes(ctx context.Context, cancel context.CancelFunc, conn *websocket.Conn, relayUrl string, userHexKey string) {
-	// defer conn.Close()
+	defer conn.Close()
 	defer cancel()
 	log := logrus.WithField("relay", relayUrl)
 
@@ -253,77 +246,87 @@ func handleUserNotes(ctx context.Context, cancel context.CancelFunc, conn *webso
 		if len(userNotes) < 2 {
 			continue
 		}
-		fmt.Printf("passed length check")
+		fmt.Println("passed length check")
 
 		messageType, ok := userNotes[0].(string)
 		if !ok {
 			continue
 		}
 
-		switch messageType {
-		case "EVENT":
-			conn, err := amqp.Dial("amqp://guest:guest@localhost:5672/")
-			if err != nil {
-				fmt.Println("Failed to connect to RabbitMQ", err)
+		if len(userNotes) > 2 {
+			if note, ok := userNotes[2].(map[string]interface{}); ok {
+				kind, _ := note["kind"].(float64)
+				if kind == 1 {
+					switch messageType {
+					case "EVENT":
+						conn, err := amqp.Dial("amqp://guest:guest@localhost:5672/")
+						if err != nil {
+							fmt.Println("Failed to connect to RabbitMQ", err)
+						}
+						defer conn.Close()
+
+						channel, err := conn.Channel()
+						if err != nil {
+							fmt.Println("Failed to open a channel")
+						}
+
+						defer channel.Close()
+
+						queue, err := channel.QueueDeclare(
+							"user_notes",
+							false,
+							false,
+							false,
+							false,
+							nil,
+						)
+
+						if err != nil {
+							fmt.Println("Failed to declare a queue", err)
+						}
+
+						jsonUserNotes, err := json.Marshal(userNotes)
+						if err != nil {
+							fmt.Println("Failed to marshall user notes into JSON")
+							continue
+						}
+
+						err = channel.PublishWithContext(ctx,
+							"",
+							queue.Name,
+							false,
+							false,
+							amqp.Publishing{
+								ContentType: "text/plain",
+								Body:        []byte(jsonUserNotes),
+							})
+
+						if err != nil {
+							fmt.Printf("Failed to send notes with rabbitmq: %v\n", err)
+						} else {
+							fmt.Printf("User notes sent to rabbitmq\n")
+							cancel()
+						}
+
+					case "EOSE":
+						fmt.Println("End of stored events")
+						return
+
+					case "NOTICE":
+						fmt.Printf("Received NOTICE: %v\n", userNotes[1])
+					default:
+						fmt.Printf("Unknown message type: %s\n", messageType)
+					}
+				}
 			}
-			// defer conn.Close()
-
-			channel, err := conn.Channel()
-			if err != nil {
-				fmt.Println("Failed to open a channel")
-			}
-
-			defer channel.Close()
-
-			queue, err := channel.QueueDeclare(
-				"user_notes",
-				false,
-				false,
-				false,
-				false,
-				nil,
-			)
-
-			if err != nil {
-				fmt.Println("Failed to declare a queue", err)
-			}
-			spew.Dump("user notes: ", userNotes)
-			jsonUserNotes, err := json.Marshal(userNotes)
-			if err != nil {
-				fmt.Println("Failed to marshall user notes into JSON")
-				continue
-			}
-
-			err = channel.PublishWithContext(ctx,
-				"",
-				queue.Name,
-				false,
-				false,
-				amqp.Publishing{
-					ContentType: "text/plain",
-					Body:        []byte(jsonUserNotes),
-				})
-
-			if err != nil {
-				fmt.Printf("Failed to send notes with rabbitmq: %v\n", err)
-			} else {
-				fmt.Printf("User notes sent to rabbitmq\n")
-				cancel()
-			}
-
-		case "EOSE":
-			fmt.Println("End of stored events")
-			return
-
-		case "NOTICE":
-			fmt.Printf("Received NOTICE: %v\n", userNotes[1])
-		default:
-			fmt.Printf("Unknown message type: %s\n", messageType)
+		} else {
+			continue
 		}
 	}
 }
 
 func handleNewNote(conn *websocket.Conn, relayUrl string, newNote data.NewNote, noteFinished chan<- string) {
+	log := logrus.WithField("relay", relayUrl)
 	// what are you doing here?
 	defer func() {
 		noteFinished <- relayUrl
@@ -355,7 +358,7 @@ func handleNewNote(conn *websocket.Conn, relayUrl string, newNote data.NewNote, 
 		defer idWg.Done()
 		err := newNoteEvent.GenerateId()
 		if err != nil {
-			log.Fatal("Error generating event ID: ", err)
+			log.Error("Error generating event ID: ", err)
 			return
 		}
 	}(newNoteEvent)
@@ -363,31 +366,30 @@ func handleNewNote(conn *websocket.Conn, relayUrl string, newNote data.NewNote, 
 
 	err := newNoteEvent.SignEvent(newNote.PrivHexKey)
 	if err != nil {
-		log.Fatal("Error signing the event: ", err)
+		log.Error("Error signing the event: ", err)
 	}
 
 	isValid, err := newNoteEvent.VerifySignature()
 	if err != nil {
-		log.Fatal("Error verifying signature: ", err)
+		log.Error("Error verifying signature: ", err)
 	}
 
 	if !isValid {
-		log.Fatal("Generated signature is not valid")
+		log.Error("Generated signature is not valid")
 	}
 
 	eventWrapper := []interface{}{"EVENT", newNoteEvent}
 
 	newNoteJson, err := json.Marshal(eventWrapper)
 	if err != nil {
-		log.Fatal("Error marshalling the event into JSON: ", err)
+		log.Error("Error marshalling the event into JSON: ", err)
 	}
 
 	err = conn.WriteMessage(websocket.TextMessage, newNoteJson)
 	if err != nil {
-		log.Fatal("Error sending subscription request: ", err)
+		log.Error("Error sending subscription request,new note: ", err)
 	}
 
-	var log = logrus.New()
 	for {
 		_, message, err := conn.ReadMessage()
 		if err != nil {
@@ -400,14 +402,14 @@ func handleNewNote(conn *websocket.Conn, relayUrl string, newNote data.NewNote, 
 		var newNoteMsg []interface{}
 		err = json.Unmarshal(message, &newNoteMsg)
 		if err != nil {
-			log.Fatal("Error unmarshalling json: ", err)
+			log.Error("Error unmarshalling json: ", err)
 		}
 		fmt.Printf("new message: %v\n", newNoteMsg)
 	}
 }
 
 // I can probably hand in a connection type here as well
-func handleRelayConnection(conn *websocket.Conn, relayUrl string, finished chan<- string, userHexKey string) {
+func handleMetadata(conn *websocket.Conn, relayUrl string, finished chan<- string, userHexKey string) {
 	// defer conn.Close()
 	log := logrus.WithField("relay", relayUrl)
 
@@ -432,10 +434,11 @@ func handleRelayConnection(conn *websocket.Conn, relayUrl string, finished chan<
 
 	err = conn.WriteMessage(websocket.TextMessage, subscriptionRequestJSON)
 	if err != nil {
-		log.Error("Error sending subscription request: ", err)
+		log.Error("Error sending subscription request, metadata: ", err)
 	}
 
 	// the loop for connecting, reading and writing can probably be abstracted out into its own method
+
 	if userHexKey != "" {
 		for {
 			_, message, err := conn.ReadMessage()
@@ -456,24 +459,33 @@ func handleRelayConnection(conn *websocket.Conn, relayUrl string, finished chan<
 				continue
 			}
 
-			var jsonMetadata []byte
-
-			if len(metadataMessage) == 0 || metadataMessage[0] == "EOSE" {
-				fmt.Println("Received an empty message or end of stream")
+			if len(metadataMessage) <= 2 {
 				continue
 			}
 
-			if metadataMessage[0] != "EOSE" {
-				jsonMetadata, err = json.Marshal(metadataMessage)
-			}
+			if note, ok := metadataMessage[2].(map[string]interface{}); ok {
+				kind, _ := note["kind"].(float64)
+				if kind == 0 {
+					var jsonMetadata []byte
 
-			if err != nil {
-				log.Fatal("Error marshalling user metadata into JSON", err)
-				break
-			}
+					if len(metadataMessage) == 0 || metadataMessage[0] == "EOSE" {
+						fmt.Println("Received an empty message or end of stream")
+						continue
+					}
 
-			redis.HandleMetaData(jsonMetadata, finished, relayUrl, userHexKey, conn)
-			break
+					if metadataMessage[0] != "EOSE" {
+						jsonMetadata, err = json.Marshal(metadataMessage)
+					}
+
+					if err != nil {
+						log.Fatal("Error marshalling user metadata into JSON", err)
+						break
+					}
+
+					redis.HandleMetaData(jsonMetadata, finished, relayUrl, userHexKey, conn)
+					break
+				}
+			}
 		}
 	}
 }
