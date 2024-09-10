@@ -243,7 +243,7 @@ func handleUserNotes(ctx context.Context, cancel context.CancelFunc, conn *webso
 			continue
 		}
 
-		if len(userNotes) < 2 {
+		if len(userNotes) < 3 {
 			continue
 		}
 		fmt.Println("passed length check")
@@ -269,7 +269,7 @@ func handleUserNotes(ctx context.Context, cancel context.CancelFunc, conn *webso
 						if err != nil {
 							fmt.Println("Failed to open a channel")
 						}
-
+						spew.Dump(userNotes)
 						defer channel.Close()
 
 						queue, err := channel.QueueDeclare(

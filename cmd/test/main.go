@@ -178,7 +178,7 @@ func userMetadataQueue(relayUrls []string) {
 		fmt.Println("Failed to register a consumer")
 	}
 
-	var innerWg sync.WaitGroup
+	// var innerWg sync.WaitGroup
 
 	go func() {
 		for relayUrl := range finished {
@@ -189,16 +189,17 @@ func userMetadataQueue(relayUrls []string) {
 	for d := range msgs {
 		go func(d amqp.Delivery) {
 			userHexKey := string(d.Body)
-			for _, url := range relayUrls {
-				innerWg.Add(1)
-				go func(url string, conn *amqp.Connection) {
-					defer innerWg.Done()
-					relay.GetUserMetadata(url, finished, "user_metadata", userHexKey)
-				}(url, conn)
-			}
-			innerWg.Wait()
-			metadataSetQueue(conn, userHexKey)
-			// userNotes(relayUrls, userHexKey)
+			// for _, url := range relayUrls {
+			// 	innerWg.Add(1)
+			// 	go func(url string, conn *amqp.Connection) {
+			// 		defer innerWg.Done()
+			// 		relay.GetUserMetadata(url, finished, "user_metadata", userHexKey)
+			// 	}(url, conn)
+			// }
+			// innerWg.Wait()
+			// metadataSetQueue(conn, userHexKey)
+			// needs its own queue-maybe
+			userNotes(relayUrls, userHexKey)
 			// followList(relayUrls, userHexKey)
 		}(d)
 	}
