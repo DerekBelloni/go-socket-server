@@ -200,8 +200,8 @@ func handleClassifiedListings(conn *websocket.Conn, relayUrl string) {
 }
 
 func handleUserNotes(ctx context.Context, cancel context.CancelFunc, conn *websocket.Conn, relayUrl string, userHexKey string) {
-	defer conn.Close()
-	defer cancel()
+	// defer conn.Close()
+	// defer cancel()
 	log := logrus.WithField("relay", relayUrl)
 
 	subscriptionID, err := generateRandomString(16)
@@ -252,7 +252,7 @@ func handleUserNotes(ctx context.Context, cancel context.CancelFunc, conn *webso
 		if !ok {
 			continue
 		}
-
+		fmt.Println("apple")
 		if len(userNotes) > 2 {
 			if note, ok := userNotes[2].(map[string]interface{}); ok {
 				kind, _ := note["kind"].(float64)
@@ -438,7 +438,7 @@ func handleMetadata(conn *websocket.Conn, relayUrl string, finished chan<- strin
 	}
 
 	// the loop for connecting, reading and writing can probably be abstracted out into its own method
-
+	fmt.Println("banana ")
 	if userHexKey != "" {
 		for {
 			_, message, err := conn.ReadMessage()

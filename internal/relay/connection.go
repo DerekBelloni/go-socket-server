@@ -46,6 +46,7 @@ func SendNoteToRelay(relayUrl string, newNote data.NewNote, noteFinished chan<- 
 func GetUserNotes(ctx context.Context, cancel context.CancelFunc, relayUrl string, userHexKey string) {
 	// conn, _, err := websocket.DefaultDialer.Dial(relayUrl, nil)
 	log := logrus.WithField("user notes, relay", relayUrl)
+	// requestType := "userNotes"
 	conn, err := getConnection(relayUrl)
 	if err != nil {
 		log.Error("Dial error: ", err)
