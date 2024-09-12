@@ -43,7 +43,7 @@ func SendNoteToRelay(relayUrl string, newNote data.NewNote, noteFinished chan<- 
 	handleNewNote(conn, relayUrl, newNote, noteFinished)
 }
 
-func GetUserNotes(ctx context.Context, cancel context.CancelFunc, relayUrl string, userHexKey string) {
+func GetUserNotes(ctx context.Context, cancel context.CancelFunc, relayUrl string, userHexKey string, notesFinished chan<- string) {
 	// conn, _, err := websocket.DefaultDialer.Dial(relayUrl, nil)
 	log := logrus.WithField("user notes, relay", relayUrl)
 	// requestType := "userNotes"
@@ -53,7 +53,7 @@ func GetUserNotes(ctx context.Context, cancel context.CancelFunc, relayUrl strin
 	}
 	// defer conn.Close()
 
-	handleUserNotes(ctx, cancel, conn, relayUrl, userHexKey)
+	handleUserNotes(ctx, cancel, conn, relayUrl, userHexKey, notesFinished)
 }
 
 func GetClassifiedListings(relayUrl string) {

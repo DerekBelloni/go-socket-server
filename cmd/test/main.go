@@ -80,7 +80,7 @@ func createNote(relayUrls []string) {
 	<-forever
 }
 
-func userNotes(relayUrls []string, userHexKey string) {
+func userNotes(relayUrls []string, userHexKey string, notesFinished chan<- string) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	for _, url := range relayUrls {
@@ -88,7 +88,7 @@ func userNotes(relayUrls []string, userHexKey string) {
 		noteWg.Add(1)
 		go func(url string) {
 			defer noteWg.Done()
-			relay.GetUserNotes(ctx, cancel, url, userHexKey)
+			relay.GetUserNotes(ctx, cancel, url, userHexKey, notesFinished)
 		}(url)
 	}
 }
@@ -138,6 +138,7 @@ func metadataSetQueue(conn *amqp.Connection, userHexKey string) {
 func userMetadataQueue(relayUrls []string) {
 	forever := make(chan struct{})
 	finished := make(chan string)
+	notesFinished := make(chan string)
 
 	conn, err := amqp.Dial("amqp://guest:guest@localhost:5672/")
 	if err != nil {
@@ -178,12 +179,19 @@ func userMetadataQueue(relayUrls []string) {
 		fmt.Println("Failed to register a consumer")
 	}
 
-	var innerWg sync.WaitGroup
+	var metaWg sync.WaitGroup
+	var notesWg sync.WaitGroup
 
 	go func() {
 		for relayUrl := range finished {
-			fmt.Printf("Finished processing relay: %s\n", relayUrl)
-			innerWg.Done()
+			fmt.Printf("Finished processing metadata for relay: %s\n", relayUrl)
+			metaWg.Done()
+		}
+	}()
+	go func() {
+		for relayUrl := range notesFinished {
+			fmt.Printf("Finished processing user notes relay: %s\n", relayUrl)
+			notesWg.Done()
 		}
 	}()
 
@@ -191,16 +199,22 @@ func userMetadataQueue(relayUrls []string) {
 		go func(d amqp.Delivery) {
 			userHexKey := string(d.Body)
 			for _, url := range relayUrls {
-				innerWg.Add(1)
+				metaWg.Add(1)
 				go func(url string, conn *amqp.Connection) {
-					// defer innerWg.Done()
 					relay.GetUserMetadata(url, finished, "user_metadata", userHexKey)
 				}(url, conn)
 			}
+
+			metaWg.Wait()
 			metadataSetQueue(conn, userHexKey)
-			innerWg.Wait()
-			fmt.Println("Past the wait group")
-			userNotes(relayUrls, userHexKey)
+			for _, url := range relayUrls {
+				notesWg.Add(1)
+				go func(url string, conn *amqp.Connection) {
+					userNotes(relayUrls, userHexKey, notesFinished)
+				}(url, conn)
+			}
+
+			notesWg.Wait()
 			// followList(relayUrls, userHexKey)
 		}(d)
 	}
@@ -236,7 +250,7 @@ func followList(relayUrls []string, userHexKey string) {
 
 func main() {
 	relayUrls := []string{
-		"wss://relay.damus.io",
+		// "wss://relay.damus.io",
 		"wss://nos.lol",
 		// "wss://purplerelay.com",
 		"wss://relay.primal.net",

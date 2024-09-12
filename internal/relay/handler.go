@@ -199,7 +199,7 @@ func handleClassifiedListings(conn *websocket.Conn, relayUrl string) {
 	}
 }
 
-func handleUserNotes(ctx context.Context, cancel context.CancelFunc, conn *websocket.Conn, relayUrl string, userHexKey string) {
+func handleUserNotes(ctx context.Context, cancel context.CancelFunc, conn *websocket.Conn, relayUrl string, userHexKey string, notesFinished chan<- string) {
 	// defer conn.Close()
 	// defer cancel()
 	log := logrus.WithField("relay", relayUrl)
@@ -437,8 +437,6 @@ func handleMetadata(conn *websocket.Conn, relayUrl string, finished chan<- strin
 		log.Error("Error sending subscription request, metadata: ", err)
 	}
 
-	// the loop for connecting, reading and writing can probably be abstracted out into its own method
-	fmt.Println("banana ")
 	if userHexKey != "" {
 		for {
 			_, message, err := conn.ReadMessage()
@@ -479,7 +477,7 @@ func handleMetadata(conn *websocket.Conn, relayUrl string, finished chan<- strin
 
 					if err != nil {
 						log.Fatal("Error marshalling user metadata into JSON", err)
-						break
+						continue
 					}
 
 					redis.HandleMetaData(jsonMetadata, finished, relayUrl, userHexKey, conn)
