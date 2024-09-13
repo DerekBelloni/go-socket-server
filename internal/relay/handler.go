@@ -225,16 +225,27 @@ func handleUserNotes(ctx context.Context, cancel context.CancelFunc, conn *webso
 		log.Error("Error marshalling subscription request: ", err)
 	}
 
+	mu := new(sync.Mutex)
+	mu.Lock()
 	err = conn.WriteMessage(websocket.TextMessage, subscriptionRequestJSON)
+	mu.Unlock()
+
 	if err != nil {
-		log.Error("Error sending subscription request, user notes: ", err)
+		// log.Error("Error sending subscription request, user notes: ", err)
+		if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway) {
+			log.Printf("error: %v", err)
+		}
+		return
 	}
 
 	for {
 		_, message, err := conn.ReadMessage()
 		if err != nil {
-			fmt.Println("Error reading message from relay")
-			break
+			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway) {
+				log.Printf("error: %v", err)
+			}
+			// break
+			return
 		}
 
 		var userNotes []interface{}
@@ -409,8 +420,7 @@ func handleNewNote(conn *websocket.Conn, relayUrl string, newNote data.NewNote, 
 }
 
 // I can probably hand in a connection type here as well
-func handleMetadata(conn *websocket.Conn, relayUrl string, finished chan<- string, userHexKey string) {
-	// defer conn.Close()
+func handleMetadata(conn *websocket.Conn, relayUrl string, finished chan<- string, userHexKey string, metadataSet chan<- string) {
 	log := logrus.WithField("relay", relayUrl)
 
 	subscriptionID, err := generateRandomString(16)
@@ -432,7 +442,11 @@ func handleMetadata(conn *websocket.Conn, relayUrl string, finished chan<- strin
 		log.Error("Error marshalling subscription request: ", err)
 	}
 
+	mu := new(sync.Mutex)
+	mu.Lock()
 	err = conn.WriteMessage(websocket.TextMessage, subscriptionRequestJSON)
+	mu.Unlock()
+	fmt.Print("After mutex in metadata handler\n")
 	if err != nil {
 		log.Error("Error sending subscription request, metadata: ", err)
 	}
@@ -456,7 +470,7 @@ func handleMetadata(conn *websocket.Conn, relayUrl string, finished chan<- strin
 				}).Error("Error unmarshalling JSON")
 				continue
 			}
-
+			fmt.Printf("metadata: %v\n", metadataMessage)
 			if len(metadataMessage) <= 2 {
 				continue
 			}
@@ -476,12 +490,13 @@ func handleMetadata(conn *websocket.Conn, relayUrl string, finished chan<- strin
 					}
 
 					if err != nil {
-						log.Fatal("Error marshalling user metadata into JSON", err)
+						log.Warn("Error marshalling user metadata into JSON", err)
 						continue
 					}
 
 					redis.HandleMetaData(jsonMetadata, finished, relayUrl, userHexKey, conn)
-					break
+					// break
+					metadataSet <- relayUrl
 				}
 			}
 		}

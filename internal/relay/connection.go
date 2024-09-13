@@ -18,7 +18,7 @@ func getConnection(relayUrl string) (*websocket.Conn, error) {
 	return relayManager.GetConnection(relayUrl)
 }
 
-func GetUserMetadata(relayUrl string, finished chan<- string, mqMsgType string, userHexKey string) {
+func GetUserMetadata(relayUrl string, finished chan<- string, mqMsgType string, userHexKey string, metadataSet chan<- string) {
 	// conn, _, err := websocket.DefaultDialer.Dial(relayUrl, nil)
 	log := logrus.WithField("relay", relayUrl)
 
@@ -28,7 +28,7 @@ func GetUserMetadata(relayUrl string, finished chan<- string, mqMsgType string, 
 	}
 	// defer conn.Close()
 
-	handleMetadata(conn, relayUrl, finished, userHexKey)
+	handleMetadata(conn, relayUrl, finished, userHexKey, metadataSet)
 }
 
 func SendNoteToRelay(relayUrl string, newNote data.NewNote, noteFinished chan<- string) {

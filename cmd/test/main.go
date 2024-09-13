@@ -139,6 +139,7 @@ func userMetadataQueue(relayUrls []string) {
 	forever := make(chan struct{})
 	finished := make(chan string)
 	notesFinished := make(chan string)
+	metadataSet := make(chan string)
 
 	conn, err := amqp.Dial("amqp://guest:guest@localhost:5672/")
 	if err != nil {
@@ -179,13 +180,13 @@ func userMetadataQueue(relayUrls []string) {
 		fmt.Println("Failed to register a consumer")
 	}
 
-	var metaWg sync.WaitGroup
+	// var metaWg sync.WaitGroup
 	var notesWg sync.WaitGroup
 
 	go func() {
 		for relayUrl := range finished {
 			fmt.Printf("Finished processing metadata for relay: %s\n", relayUrl)
-			metaWg.Done()
+			// metaWg.Done()
 		}
 	}()
 	go func() {
@@ -199,22 +200,21 @@ func userMetadataQueue(relayUrls []string) {
 		go func(d amqp.Delivery) {
 			userHexKey := string(d.Body)
 			for _, url := range relayUrls {
-				metaWg.Add(1)
 				go func(url string, conn *amqp.Connection) {
-					relay.GetUserMetadata(url, finished, "user_metadata", userHexKey)
+					relay.GetUserMetadata(url, finished, "user_metadata", userHexKey, metadataSet)
 				}(url, conn)
 			}
 
-			metaWg.Wait()
+			<-metadataSet
 			metadataSetQueue(conn, userHexKey)
+
 			for _, url := range relayUrls {
-				notesWg.Add(1)
 				go func(url string, conn *amqp.Connection) {
 					userNotes(relayUrls, userHexKey, notesFinished)
 				}(url, conn)
 			}
 
-			notesWg.Wait()
+			<-notesFinished
 			// followList(relayUrls, userHexKey)
 		}(d)
 	}
