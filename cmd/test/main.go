@@ -2,83 +2,81 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log"
 	"sync"
 	"time"
 
-	"github.com/DerekBelloni/go-socket-server/data"
 	"github.com/DerekBelloni/go-socket-server/internal/relay"
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
-func createNote(relayUrls []string) {
-	forever := make(chan struct{})
-	noteFinished := make(chan string)
+// func createNote(relayUrls []string) {
+// 	forever := make(chan struct{})
+// 	noteFinished := make(chan string)
 
-	conn, err := amqp.Dial("amqp://guest:guest@localhost:5672/")
-	if err != nil {
-		fmt.Println("Failed to connect to RabbitMQ", err)
-	}
-	defer conn.Close()
+// 	conn, err := amqp.Dial("amqp://guest:guest@localhost:5672/")
+// 	if err != nil {
+// 		fmt.Println("Failed to connect to RabbitMQ", err)
+// 	}
+// 	defer conn.Close()
 
-	channel, err := conn.Channel()
-	if err != nil {
-		fmt.Println("Failed to open a channel")
-	}
+// 	channel, err := conn.Channel()
+// 	if err != nil {
+// 		fmt.Println("Failed to open a channel")
+// 	}
 
-	defer channel.Close()
+// 	defer channel.Close()
 
-	queue, err := channel.QueueDeclare(
-		"new_note",
-		false,
-		false,
-		false,
-		false,
-		nil,
-	)
+// 	queue, err := channel.QueueDeclare(
+// 		"new_note",
+// 		false,
+// 		false,
+// 		false,
+// 		false,
+// 		nil,
+// 	)
 
-	if err != nil {
-		fmt.Println("Failed to declare a queue", err)
-	}
+// 	if err != nil {
+// 		fmt.Println("Failed to declare a queue", err)
+// 	}
 
-	msgs, err := channel.Consume(
-		queue.Name,
-		"",
-		true,
-		false,
-		false,
-		false,
-		nil,
-	)
-	if err != nil {
-		fmt.Println("Failed to register a consumer")
-	}
+// 	msgs, err := channel.Consume(
+// 		queue.Name,
+// 		"",
+// 		true,
+// 		false,
+// 		false,
+// 		false,
+// 		nil,
+// 	)
+// 	if err != nil {
+// 		fmt.Println("Failed to register a consumer")
+// 	}
 
-	var wg sync.WaitGroup
+// 	var wg sync.WaitGroup
 
-	for msg := range msgs {
-		go func(msg amqp.Delivery) {
-			var newNote data.NewNote
-			err := json.Unmarshal([]byte(msg.Body), &newNote)
-			if err != nil {
-				fmt.Printf("Error unmarshalling json: %v\n", err)
-				return
-			}
+// 	for msg := range msgs {
+// 		go func(msg amqp.Delivery) {
+// 			var newNote data.NewNote
+// 			err := json.Unmarshal([]byte(msg.Body), &newNote)
+// 			if err != nil {
+// 				fmt.Printf("Error unmarshalling json: %v\n", err)
+// 				return
+// 			}
 
-			for _, url := range relayUrls {
-				wg.Add(1)
-				go func(url string) {
-					defer wg.Done()
-					relay.SendNoteToRelay(url, newNote, noteFinished)
-				}(url)
-			}
-		}(msg)
-	}
+// 			for _, url := range relayUrls {
+// 				wg.Add(1)
+// 				go func(url string) {
+// 					defer wg.Done()
+// 					relay.SendNoteToRelay(url, newNote, noteFinished)
+// 				}(url)
+// 			}
+// 		}(msg)
+// 	}
 
-	<-forever
-}
+// 	<-forever
+// }
 
 func userNotes(relayUrls []string, userHexKey string, notesFinished chan<- string) {
 	ctx, cancel := context.WithCancel(context.Background())
@@ -223,30 +221,30 @@ func userMetadataQueue(relayUrls []string) {
 	<-forever
 }
 
-func classifiedListings(relayUrls []string) {
-	var innerWg sync.WaitGroup
-	for _, url := range relayUrls {
-		innerWg.Add(1)
-		go func(relayUrl string) {
-			defer innerWg.Done()
-			relay.GetClassifiedListings(relayUrl)
-		}(url)
-		innerWg.Wait()
-	}
-}
+// func classifiedListings(relayUrls []string) {
+// 	var innerWg sync.WaitGroup
+// 	for _, url := range relayUrls {
+// 		innerWg.Add(1)
+// 		go func(relayUrl string) {
+// 			defer innerWg.Done()
+// 			relay.GetClassifiedListings(relayUrl)
+// 		}(url)
+// 		innerWg.Wait()
+// 	}
+// }
 
-func followList(relayUrls []string, userHexKey string) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	var wg sync.WaitGroup
-	for _, relayUrl := range relayUrls {
-		wg.Add(1)
-		go func(relayUrl string) {
-			defer wg.Done()
-			relay.GetFollowList(ctx, cancel, relayUrl, userHexKey)
-		}(relayUrl)
-	}
-}
+// func followList(relayUrls []string, userHexKey string) {
+// 	ctx, cancel := context.WithCancel(context.Background())
+// 	defer cancel()
+// 	var wg sync.WaitGroup
+// 	for _, relayUrl := range relayUrls {
+// 		wg.Add(1)
+// 		go func(relayUrl string) {
+// 			defer wg.Done()
+// 			relay.GetFollowList(ctx, cancel, relayUrl, userHexKey)
+// 		}(relayUrl)
+// 	}
+// }
 
 func main() {
 	relayUrls := []string{
