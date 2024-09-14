@@ -1,12 +1,9 @@
 package relay
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/DerekBelloni/go-socket-server/data"
-	"github.com/gorilla/websocket"
-	"github.com/sirupsen/logrus"
 )
 
 var relayManager *data.RelayManager
@@ -15,19 +12,19 @@ func init() {
 	relayManager = data.NewRelayManager()
 }
 
-func getConnection(relayUrl string) (*websocket.Conn, chan []byte, error) {
+func initConnection(relayUrl string) (chan []byte, error) {
 	return relayManager.GetConnection(relayUrl)
 }
 
 func GetUserMetadata(relayUrl string, finished chan<- string, mqMsgType string, userHexKey string, metadataSet chan<- string) {
 	fmt.Print("in connection.go\n")
 
-	conn, writeChan, err := getConnection(relayUrl)
-	fmt.Printf("connection in connection.go: %v\n", conn)
+	writeChan, err := initConnection(relayUrl)
+
 	if err != nil {
 		fmt.Printf("Dial error: %v\n", err)
 	}
-	MetadataSubscription(conn, relayUrl, userHexKey, writeChan)
+	MetadataSubscription(relayUrl, userHexKey, writeChan)
 	// handleMetadata(conn, relayUrl, finished, userHexKey, metadataSet)
 }
 
@@ -43,16 +40,16 @@ func GetUserMetadata(relayUrl string, finished chan<- string, mqMsgType string, 
 // 	handleNewNote(conn, relayUrl, newNote, noteFinished)
 // }
 
-func GetUserNotes(ctx context.Context, cancel context.CancelFunc, relayUrl string, userHexKey string, notesFinished chan<- string) {
-	log := logrus.WithField("user notes, relay", relayUrl)
-	conn, writeChan, err := getConnection(relayUrl)
-	if err != nil {
-		log.Error("Dial error: ", err)
-	}
+// func GetUserNotes(ctx context.Context, cancel context.CancelFunc, relayUrl string, userHexKey string, notesFinished chan<- string) {
+// 	log := logrus.WithField("user notes, relay", relayUrl)
+// 	conn, writeChan, err := getConnection(relayUrl)
+// 	if err != nil {
+// 		log.Error("Dial error: ", err)
+// 	}
 
-	UserNotesSubscription(conn, relayUrl, userHexKey, writeChan)
-	// handleUserNotes(ctx, cancel, conn, relayUrl, userHexKey, notesFinished)
-}
+// 	UserNotesSubscription(conn, relayUrl, userHexKey, writeChan)
+// 	// handleUserNotes(ctx, cancel, conn, relayUrl, userHexKey, notesFinished)
+// }
 
 // func GetClassifiedListings(relayUrl string) {
 // 	conn, _, err := websocket.DefaultDialer.Dial(relayUrl, nil)

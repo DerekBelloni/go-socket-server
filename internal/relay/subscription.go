@@ -18,7 +18,7 @@ func generateRandomString(length int) (string, error) {
 	return hex.EncodeToString(bytes), nil
 }
 
-func MetadataSubscription(conn *websocket.Conn, relayUrl string, userHexKey string, writeChan chan<- []byte) {
+func MetadataSubscription(relayUrl string, userHexKey string, writeChan chan<- []byte) {
 	fmt.Println("hello there")
 	subscriptionID, err := generateRandomString(16)
 	if err != nil {

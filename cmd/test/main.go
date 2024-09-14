@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"sync"
 	"time"
 
 	"github.com/DerekBelloni/go-socket-server/internal/relay"
@@ -78,18 +77,18 @@ import (
 // 	<-forever
 // }
 
-func userNotes(relayUrls []string, userHexKey string, notesFinished chan<- string) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	for _, url := range relayUrls {
-		var noteWg sync.WaitGroup
-		noteWg.Add(1)
-		go func(url string) {
-			defer noteWg.Done()
-			relay.GetUserNotes(ctx, cancel, url, userHexKey, notesFinished)
-		}(url)
-	}
-}
+// func userNotes(relayUrls []string, userHexKey string, notesFinished chan<- string) {
+// 	ctx, cancel := context.WithCancel(context.Background())
+// 	defer cancel()
+// 	for _, url := range relayUrls {
+// 		var noteWg sync.WaitGroup
+// 		noteWg.Add(1)
+// 		go func(url string) {
+// 			defer noteWg.Done()
+// 			relay.GetUserNotes(ctx, cancel, url, userHexKey, notesFinished)
+// 		}(url)
+// 	}
+// }
 
 func metadataSetQueue(conn *amqp.Connection, userHexKey string) {
 	fmt.Println("apple")
@@ -249,10 +248,10 @@ func userMetadataQueue(relayUrls []string) {
 
 func main() {
 	relayUrls := []string{
-		// "wss://relay.damus.io",
-		// "wss://nos.lol",
-		"wss://purplerelay.com",
-		// "wss://relay.primal.net",
+		"wss://relay.damus.io",
+		"wss://nos.lol",
+		// "wss://purplerelay.com",
+		"wss://relay.primal.net",
 		// "wss://relay.nostr.band",
 	}
 
