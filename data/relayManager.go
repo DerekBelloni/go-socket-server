@@ -1,54 +1,77 @@
 package data
 
 import (
+	"errors"
 	"fmt"
 	"sync"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/gorilla/websocket"
-	"github.com/sirupsen/logrus"
 )
 
 type RelayManager struct {
 	connections map[string]*websocket.Conn
 	mutex       sync.RWMutex
-	log         *logrus.Logger
-	// readChans map[string]chan
-	writeChans map[string]chan []byte
+	writeChans  map[string]chan []byte
 }
 
 func NewRelayManager() *RelayManager {
 	return &RelayManager{
 		connections: make(map[string]*websocket.Conn),
-		log:         logrus.New(),
+		writeChans:  make(map[string]chan []byte),
 	}
 }
 
-func (rm *RelayManager) GetConnection(relayUrl string) (*websocket.Conn, map[string]chan []byte, error) {
+func (rm *RelayManager) GetConnection(relayUrl string) (*websocket.Conn, chan []byte, error) {
 	rm.mutex.Lock()
-	conn, exists := rm.connections[relayUrl]
-	rm.mutex.Unlock()
+	defer rm.mutex.Unlock()
 
-	if exists && rm.isConnected(conn) {
-		return conn, rm.writeChans, nil
+	conn, writeChan, err := rm.getExistingConnection(relayUrl)
+
+	if err == nil {
+		go rm.writeLoop(relayUrl, writeChan)
+		return conn, writeChan, nil
 	}
 
-	return rm.createConnection(relayUrl)
+	return rm.createNewConnection(relayUrl)
 }
 
-func (rm *RelayManager) createConnection(relayUrl string) (*websocket.Conn, map[string]chan []byte, error) {
-	rm.mutex.Lock()
+func (rm *RelayManager) getExistingConnection(relayUrl string) (*websocket.Conn, chan []byte, error) {
+	conn, connExists := rm.connections[relayUrl]
+	writeChan, chanExists := rm.writeChans[relayUrl]
+
+	if !chanExists || !connExists {
+		return nil, nil, errors.New("no existing, valid connection")
+	}
+
+	return conn, writeChan, nil
+}
+
+func (rm *RelayManager) createNewConnection(relayUrl string) (*websocket.Conn, chan []byte, error) {
+	conn, err := rm.createConnection(relayUrl)
+
+	if err != nil {
+		return nil, nil, errors.New("could not establish new socket connection")
+	}
+
+	writeChan := make(chan []byte)
+	rm.writeChans[relayUrl] = writeChan
+	rm.connections[relayUrl] = conn
+
+	go rm.writeLoop(relayUrl, writeChan)
+	return conn, writeChan, nil
+}
+
+func (rm *RelayManager) createConnection(relayUrl string) (*websocket.Conn, error) {
 	conn, _, err := websocket.DefaultDialer.Dial(relayUrl, nil)
-	rm.mutex.Unlock()
 
 	if err != nil {
 		fmt.Printf("Error establishing a connection for relay: %v, %v\n", relayUrl, err)
-		return nil, nil, err
+		return nil, err
 	}
 
-	rm.log.Info("Connection created for relay: %v\n", relayUrl)
-
 	rm.connections[relayUrl] = conn
-	return conn, rm.writeChans, nil
+	return conn, nil
 }
 
 func (rm *RelayManager) monitorConnection(relayUrl string) {
@@ -59,8 +82,13 @@ func (rm *RelayManager) readLoop(relayUrl string) {
 
 }
 
-func (rm *RelayManager) writeLoop(relayUrl string) {
-
+func (rm *RelayManager) writeLoop(relayUrl string, writeChan <-chan []byte) {
+	fmt.Println("in write loop")
+	for {
+		for msg := range writeChan {
+			spew.Dump("message: ", msg)
+		}
+	}
 }
 
 func (rm *RelayManager) CloseAllConnections() {

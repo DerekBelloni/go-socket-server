@@ -2,6 +2,7 @@ package relay
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/DerekBelloni/go-socket-server/data"
 	"github.com/gorilla/websocket"
@@ -14,18 +15,18 @@ func init() {
 	relayManager = data.NewRelayManager()
 }
 
-func getConnection(relayUrl string) (*websocket.Conn, map[string]chan []byte, error) {
+func getConnection(relayUrl string) (*websocket.Conn, chan []byte, error) {
 	return relayManager.GetConnection(relayUrl)
 }
 
 func GetUserMetadata(relayUrl string, finished chan<- string, mqMsgType string, userHexKey string, metadataSet chan<- string) {
-	log := logrus.WithField("relay", relayUrl)
+	fmt.Print("in connection.go\n")
 
 	conn, writeChan, err := getConnection(relayUrl)
+	fmt.Printf("connection in connection.go: %v\n", conn)
 	if err != nil {
-		log.Error("Dial error: ", err)
+		fmt.Printf("Dial error: %v\n", err)
 	}
-
 	MetadataSubscription(conn, relayUrl, userHexKey, writeChan)
 	// handleMetadata(conn, relayUrl, finished, userHexKey, metadataSet)
 }

@@ -179,24 +179,25 @@ func userMetadataQueue(relayUrls []string) {
 	}
 
 	// var metaWg sync.WaitGroup
-	var notesWg sync.WaitGroup
+	// var notesWg sync.WaitGroup
 
-	go func() {
-		for relayUrl := range finished {
-			fmt.Printf("Finished processing metadata for relay: %s\n", relayUrl)
-			// metaWg.Done()
-		}
-	}()
-	go func() {
-		for relayUrl := range notesFinished {
-			fmt.Printf("Finished processing user notes relay: %s\n", relayUrl)
-			notesWg.Done()
-		}
-	}()
+	// go func() {
+	// 	for relayUrl := range finished {
+	// 		fmt.Printf("Finished processing metadata for relay: %s\n", relayUrl)
+	// 		// metaWg.Done()
+	// 	}
+	// }()
+	// go func() {
+	// 	for relayUrl := range notesFinished {
+	// 		fmt.Printf("Finished processing user notes relay: %s\n", relayUrl)
+	// 		notesWg.Done()
+	// 	}
+	// }()
 
 	for d := range msgs {
 		go func(d amqp.Delivery) {
 			userHexKey := string(d.Body)
+			fmt.Printf("user hex key: %v\n", userHexKey)
 			for _, url := range relayUrls {
 				go func(url string, conn *amqp.Connection) {
 					relay.GetUserMetadata(url, finished, "user_metadata", userHexKey, metadataSet)
@@ -206,11 +207,11 @@ func userMetadataQueue(relayUrls []string) {
 			<-metadataSet
 			metadataSetQueue(conn, userHexKey)
 
-			for _, url := range relayUrls {
-				go func(url string, conn *amqp.Connection) {
-					userNotes(relayUrls, userHexKey, notesFinished)
-				}(url, conn)
-			}
+			// for _, url := range relayUrls {
+			// 	go func(url string, conn *amqp.Connection) {
+			// 		userNotes(relayUrls, userHexKey, notesFinished)
+			// 	}(url, conn)
+			// }
 
 			<-notesFinished
 			// followList(relayUrls, userHexKey)
@@ -249,10 +250,10 @@ func userMetadataQueue(relayUrls []string) {
 func main() {
 	relayUrls := []string{
 		// "wss://relay.damus.io",
-		"wss://nos.lol",
-		// "wss://purplerelay.com",
-		"wss://relay.primal.net",
-		"wss://relay.nostr.band",
+		// "wss://nos.lol",
+		"wss://purplerelay.com",
+		// "wss://relay.primal.net",
+		// "wss://relay.nostr.band",
 	}
 
 	var forever chan struct{}
