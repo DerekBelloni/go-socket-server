@@ -29,6 +29,7 @@ func GetUserMetadata(relayUrl string, finished chan<- string, mqMsgType string, 
 
 func GetUserNotes(ctx context.Context, cancel context.CancelFunc, relayUrl string, userHexKey string, notesFinished chan<- string) {
 	writeChan, eventChan, err := initConnection(relayUrl)
+	fmt.Println("user notes in connection.go")
 	if err != nil {
 		fmt.Printf("Dial error: %v\n", err)
 	}

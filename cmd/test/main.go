@@ -125,15 +125,20 @@ func metadataSetQueue(conn *amqp.Connection, userHexKey string) {
 	if err != nil {
 		fmt.Println("Failed to publish message")
 	} else {
-		fmt.Println("User metadata stashed in Redis")
+		fmt.Println("User metadata sent to RabbitMQ")
 	}
 }
 
+// this can go in queue handler
 func userMetadataQueue(relayUrls []string) {
 	forever := make(chan struct{})
 	finished := make(chan string)
 	notesFinished := make(chan string)
 	metadataSet := make(chan string)
+
+	// queueName := "user_pub_key"
+
+	// rabbitMQMsgs, conn := handler.ConsumeQueue(queueName)
 
 	conn, err := amqp.Dial("amqp://guest:guest@localhost:5672/")
 	if err != nil {
@@ -193,26 +198,27 @@ func userMetadataQueue(relayUrls []string) {
 	for d := range msgs {
 		go func(d amqp.Delivery) {
 			userHexKey := string(d.Body)
-			fmt.Printf("user hex key: %v\n", userHexKey)
-			for _, url := range relayUrls {
-				go func(url string, conn *amqp.Connection) {
-					relay.GetUserMetadata(url, finished, "user_metadata", userHexKey, metadataSet)
-				}(url, conn)
+			if userHexKey != "" {
+				for _, url := range relayUrls {
+					go func(url string, conn *amqp.Connection) {
+						relay.GetUserMetadata(url, finished, "user_metadata", userHexKey, metadataSet)
+					}(url, conn)
+				}
+
+				<-metadataSet
+				fmt.Println("past metadata set channel")
+				metadataSetQueue(conn, userHexKey)
+
+				for _, url := range relayUrls {
+					go func(url string, conn *amqp.Connection) {
+						userNotes(relayUrls, userHexKey, notesFinished)
+					}(url, conn)
+				}
+
+				<-notesFinished
+				fmt.Println("past notes finsished channel")
+				// followList(relayUrls, userHexKey)
 			}
-
-			<-metadataSet
-			fmt.Println("past metadata set channel")
-			metadataSetQueue(conn, userHexKey)
-
-			for _, url := range relayUrls {
-				go func(url string, conn *amqp.Connection) {
-					userNotes(relayUrls, userHexKey, notesFinished)
-				}(url, conn)
-			}
-
-			<-notesFinished
-			fmt.Println("past notes finsished channel")
-			// followList(relayUrls, userHexKey)
 		}(d)
 	}
 
@@ -249,20 +255,19 @@ func main() {
 	relayUrls := []string{
 		"wss://relay.damus.io",
 		"wss://nos.lol",
-		// "wss://purplerelay.com",
+		"wss://purplerelay.com",
 		"wss://relay.primal.net",
-		// "wss://relay.nostr.band",
+		"wss://relay.nostr.band",
 	}
 
 	var forever chan struct{}
 
 	// Queue: User Metadata
 	go userMetadataQueue(relayUrls)
+
 	// Queue: Posting a Note
 	// go createNote(relayUrls)
-
 	// go classifiedListings(relayUrls)
 
-	// not sure if I need a blocking channel here
 	<-forever
 }

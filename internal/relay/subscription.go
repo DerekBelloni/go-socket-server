@@ -43,6 +43,7 @@ func MetadataSubscription(relayUrl string, userHexKey string, writeChan chan<- [
 }
 
 func UserNotesSubscription(relayUrl string, userHexKey string, writeChan chan<- []byte, eventChan <-chan string, notesFinished chan<- string) {
+	fmt.Println("subscription notes")
 	subscriptionID, err := generateRandomString(16)
 	if err != nil {
 		fmt.Printf("Error generating a subscription id: %v\n", err)
