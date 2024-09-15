@@ -1,15 +1,5 @@
 package relay
 
-import (
-	"encoding/json"
-	"fmt"
-	"sync"
-
-	"github.com/DerekBelloni/go-socket-server/internal/redis"
-	"github.com/gorilla/websocket"
-	"github.com/sirupsen/logrus"
-)
-
 // func generateRandomString(length int) (string, error) {
 // 	bytes := make([]byte, length)
 // 	_, err := rand.Read(bytes)
@@ -412,85 +402,85 @@ import (
 // }
 
 // I can probably hand in a connection type here as well
-func handleMetadata(conn *websocket.Conn, relayUrl string, finished chan<- string, userHexKey string, metadataSet chan<- string) {
-	log := logrus.WithField("relay", relayUrl)
+// func handleMetadata(conn *websocket.Conn, relayUrl string, finished chan<- string, userHexKey string, metadataSet chan<- string) {
+// 	log := logrus.WithField("relay", relayUrl)
 
-	subscriptionID, err := generateRandomString(16)
-	if err != nil {
-		log.Error("Error generating a subscription id: ", err)
-	}
+// 	subscriptionID, err := generateRandomString(16)
+// 	if err != nil {
+// 		log.Error("Error generating a subscription id: ", err)
+// 	}
 
-	subscriptionRequest := []interface{}{
-		"REQ",
-		subscriptionID,
-		map[string]interface{}{
-			"kinds":   []int{0},
-			"authors": []string{userHexKey},
-		},
-	}
+// 	subscriptionRequest := []interface{}{
+// 		"REQ",
+// 		subscriptionID,
+// 		map[string]interface{}{
+// 			"kinds":   []int{0},
+// 			"authors": []string{userHexKey},
+// 		},
+// 	}
 
-	subscriptionRequestJSON, err := json.Marshal(subscriptionRequest)
-	if err != nil {
-		log.Error("Error marshalling subscription request: ", err)
-	}
+// 	subscriptionRequestJSON, err := json.Marshal(subscriptionRequest)
+// 	if err != nil {
+// 		log.Error("Error marshalling subscription request: ", err)
+// 	}
 
-	mu := new(sync.Mutex)
-	mu.Lock()
-	err = conn.WriteMessage(websocket.TextMessage, subscriptionRequestJSON)
-	mu.Unlock()
-	fmt.Print("After mutex in metadata handler\n")
-	if err != nil {
-		log.Error("Error sending subscription request, metadata: ", err)
-	}
+// 	mu := new(sync.Mutex)
+// 	mu.Lock()
+// 	err = conn.WriteMessage(websocket.TextMessage, subscriptionRequestJSON)
+// 	mu.Unlock()
+// 	fmt.Print("After mutex in metadata handler\n")
+// 	if err != nil {
+// 		log.Error("Error sending subscription request, metadata: ", err)
+// 	}
 
-	if userHexKey != "" {
-		for {
-			_, message, err := conn.ReadMessage()
-			if err != nil {
-				log.WithFields(logrus.Fields{
-					"error": err,
-					"relay": relayUrl,
-				}).Error("WebSocket read error, main relay connection")
-				break
-			}
+// 	if userHexKey != "" {
+// 		for {
+// 			_, message, err := conn.ReadMessage()
+// 			if err != nil {
+// 				log.WithFields(logrus.Fields{
+// 					"error": err,
+// 					"relay": relayUrl,
+// 				}).Error("WebSocket read error, main relay connection")
+// 				break
+// 			}
 
-			var metadataMessage []interface{}
-			if err := json.Unmarshal(message, &metadataMessage); err != nil {
-				log.WithFields(logrus.Fields{
-					"error":   err,
-					"message": string(message),
-				}).Error("Error unmarshalling JSON")
-				continue
-			}
-			fmt.Printf("metadata: %v\n", metadataMessage)
-			if len(metadataMessage) <= 2 {
-				continue
-			}
+// 			var metadataMessage []interface{}
+// 			if err := json.Unmarshal(message, &metadataMessage); err != nil {
+// 				log.WithFields(logrus.Fields{
+// 					"error":   err,
+// 					"message": string(message),
+// 				}).Error("Error unmarshalling JSON")
+// 				continue
+// 			}
+// 			fmt.Printf("metadata: %v\n", metadataMessage)
+// 			if len(metadataMessage) <= 2 {
+// 				continue
+// 			}
 
-			if note, ok := metadataMessage[2].(map[string]interface{}); ok {
-				kind, _ := note["kind"].(float64)
-				if kind == 0 {
-					var jsonMetadata []byte
+// 			if note, ok := metadataMessage[2].(map[string]interface{}); ok {
+// 				kind, _ := note["kind"].(float64)
+// 				if kind == 0 {
+// 					var jsonMetadata []byte
 
-					if len(metadataMessage) == 0 || metadataMessage[0] == "EOSE" {
-						fmt.Println("Received an empty message or end of stream")
-						continue
-					}
+// 					if len(metadataMessage) == 0 || metadataMessage[0] == "EOSE" {
+// 						fmt.Println("Received an empty message or end of stream")
+// 						continue
+// 					}
 
-					if metadataMessage[0] != "EOSE" {
-						jsonMetadata, err = json.Marshal(metadataMessage)
-					}
+// 					if metadataMessage[0] != "EOSE" {
+// 						jsonMetadata, err = json.Marshal(metadataMessage)
+// 					}
 
-					if err != nil {
-						log.Warn("Error marshalling user metadata into JSON", err)
-						continue
-					}
+// 					if err != nil {
+// 						log.Warn("Error marshalling user metadata into JSON", err)
+// 						continue
+// 					}
 
-					redis.HandleMetaData(jsonMetadata, finished, relayUrl, userHexKey, conn)
-					// break
-					metadataSet <- relayUrl
-				}
-			}
-		}
-	}
-}
+// 					redis.HandleMetaData(jsonMetadata, finished, relayUrl, userHexKey, conn)
+// 					// break
+// 					metadataSet <- relayUrl
+// 				}
+// 			}
+// 		}
+// 	}
+// }

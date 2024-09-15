@@ -1,6 +1,7 @@
 package relay
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/DerekBelloni/go-socket-server/data"
@@ -12,20 +13,27 @@ func init() {
 	relayManager = data.NewRelayManager()
 }
 
-func initConnection(relayUrl string) (chan []byte, error) {
+func initConnection(relayUrl string) (chan []byte, chan string, error) {
 	return relayManager.GetConnection(relayUrl)
 }
 
 func GetUserMetadata(relayUrl string, finished chan<- string, mqMsgType string, userHexKey string, metadataSet chan<- string) {
-	fmt.Print("in connection.go\n")
-
-	writeChan, err := initConnection(relayUrl)
+	writeChan, eventChan, err := initConnection(relayUrl)
 
 	if err != nil {
 		fmt.Printf("Dial error: %v\n", err)
 	}
-	MetadataSubscription(relayUrl, userHexKey, writeChan)
-	// handleMetadata(conn, relayUrl, finished, userHexKey, metadataSet)
+	MetadataSubscription(relayUrl, userHexKey, writeChan, eventChan, metadataSet)
+
+}
+
+func GetUserNotes(ctx context.Context, cancel context.CancelFunc, relayUrl string, userHexKey string, notesFinished chan<- string) {
+	writeChan, eventChan, err := initConnection(relayUrl)
+	if err != nil {
+		fmt.Printf("Dial error: %v\n", err)
+	}
+
+	UserNotesSubscription(relayUrl, userHexKey, writeChan, eventChan, notesFinished)
 }
 
 // func SendNoteToRelay(relayUrl string, newNote data.NewNote, noteFinished chan<- string) {
@@ -38,17 +46,6 @@ func GetUserMetadata(relayUrl string, finished chan<- string, mqMsgType string, 
 // 	defer conn.Close()
 
 // 	handleNewNote(conn, relayUrl, newNote, noteFinished)
-// }
-
-// func GetUserNotes(ctx context.Context, cancel context.CancelFunc, relayUrl string, userHexKey string, notesFinished chan<- string) {
-// 	log := logrus.WithField("user notes, relay", relayUrl)
-// 	conn, writeChan, err := getConnection(relayUrl)
-// 	if err != nil {
-// 		log.Error("Dial error: ", err)
-// 	}
-
-// 	UserNotesSubscription(conn, relayUrl, userHexKey, writeChan)
-// 	// handleUserNotes(ctx, cancel, conn, relayUrl, userHexKey, notesFinished)
 // }
 
 // func GetClassifiedListings(relayUrl string) {

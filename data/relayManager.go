@@ -6,66 +6,76 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/DerekBelloni/go-socket-server/handler"
 	"github.com/gorilla/websocket"
 )
 
 type RelayManager struct {
 	connections map[string]*websocket.Conn
 	mutex       sync.RWMutex
-	writeChans  map[string]chan []byte
+	eventChans  map[string]chan string
 	readChans   map[string]chan []byte
+	writeChans  map[string]chan []byte
 }
 
 func NewRelayManager() *RelayManager {
 	return &RelayManager{
 		connections: make(map[string]*websocket.Conn),
-		writeChans:  make(map[string]chan []byte),
+		eventChans:  make(map[string]chan string),
 		readChans:   make(map[string]chan []byte),
+		writeChans:  make(map[string]chan []byte),
 	}
 }
 
-func (rm *RelayManager) GetConnection(relayUrl string) (chan []byte, error) {
+func (rm *RelayManager) GetConnection(relayUrl string) (chan []byte, chan string, error) {
 	rm.mutex.Lock()
 	defer rm.mutex.Unlock()
 
-	conn, writeChan, err := rm.getExistingConnection(relayUrl)
+	conn, writeChan, readChan, eventChan, err := rm.getExistingConnection(relayUrl)
 
 	if err == nil {
 		go rm.writeLoop(conn, relayUrl, writeChan)
-		go rm.readLoop(conn, relayUrl)
-		return writeChan, nil
+		go rm.readLoop(conn, relayUrl, readChan)
+		go rm.processReadChannel(readChan, relayUrl, eventChan)
+		return writeChan, eventChan, nil
 	}
 
 	return rm.createNewConnection(relayUrl)
 }
 
-func (rm *RelayManager) getExistingConnection(relayUrl string) (*websocket.Conn, chan []byte, error) {
+func (rm *RelayManager) getExistingConnection(relayUrl string) (*websocket.Conn, chan []byte, chan []byte, chan string, error) {
 	conn, connExists := rm.connections[relayUrl]
-	writeChan, chanExists := rm.writeChans[relayUrl]
+	writeChan, wChanExists := rm.writeChans[relayUrl]
+	readChan, rChanExists := rm.readChans[relayUrl]
+	eventChan, eChanExists := rm.eventChans[relayUrl]
 
-	if !chanExists || !connExists {
-		return nil, nil, errors.New("no existing, valid connection")
+	if !eChanExists || !wChanExists || !rChanExists || !connExists {
+		return nil, nil, nil, nil, errors.New("no existing, valid connection")
 	}
 
-	return conn, writeChan, nil
+	return conn, writeChan, readChan, eventChan, nil
 }
 
-func (rm *RelayManager) createNewConnection(relayUrl string) (chan []byte, error) {
+func (rm *RelayManager) createNewConnection(relayUrl string) (chan []byte, chan string, error) {
 	conn, err := rm.createConnection(relayUrl)
 
 	if err != nil {
-		return nil, errors.New("could not establish new socket connection")
+		return nil, nil, errors.New("could not establish new socket connection")
 	}
 
-	writeChan := make(chan []byte)
+	eventChan := make(chan string)
 	readChan := make(chan []byte)
+	writeChan := make(chan []byte)
+
+	rm.eventChans[relayUrl] = eventChan
 	rm.readChans[relayUrl] = readChan
 	rm.writeChans[relayUrl] = writeChan
 	rm.connections[relayUrl] = conn
 
 	go rm.writeLoop(conn, relayUrl, writeChan)
-	go rm.readLoop(conn, relayUrl)
-	return writeChan, nil
+	go rm.readLoop(conn, relayUrl, readChan)
+	go rm.processReadChannel(readChan, relayUrl, eventChan)
+	return writeChan, eventChan, nil
 }
 
 func (rm *RelayManager) createConnection(relayUrl string) (*websocket.Conn, error) {
@@ -84,19 +94,60 @@ func (rm *RelayManager) monitorConnection(relayUrl string) {
 
 }
 
-func (rm *RelayManager) readLoop(conn *websocket.Conn, relayUrl string) {
+func (rm *RelayManager) readLoop(conn *websocket.Conn, relayUrl string, readChan chan []byte) {
+	// defer func() {
+	// 	delete(rm.connections, relayUrl)
+	// 	close(readChan)
+	// }()
+
 	for {
 		_, msg, err := conn.ReadMessage()
 		if err != nil {
-			fmt.Printf("Error reading message from relay: %v, error: %v\n", relayUrl, err)
+			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
+				fmt.Printf("Error reading message from relay: %v, error: %v\n", relayUrl, err)
+			}
+			break
+		}
+
+		select {
+		case readChan <- msg:
+			fmt.Println("Message read to read channel")
+		default:
+			fmt.Printf("Read channel is full, discarding message from: %v\n\n", relayUrl)
+		}
+	}
+}
+
+func (rm *RelayManager) processReadChannel(readChan <-chan []byte, relayUrl string, eventChan chan string) {
+	for msg := range readChan {
+		var relayMessage []interface{}
+		err := json.Unmarshal(msg, &relayMessage)
+		fmt.Printf("relaymessage: %v, relay: %v\n\n", relayMessage, relayUrl)
+		if err != nil {
+			fmt.Printf("Error unmarshalling relay message: %v\n", err)
 			continue
 		}
-		var metadata []interface{}
-		if err := json.Unmarshal(msg, &metadata); err != nil {
-			fmt.Printf("Error unmarshalling relay message")
-			continue
-		}
-		fmt.Printf("metadata: %v\n", metadata...)
+		rm.processMessage(relayMessage, eventChan)
+	}
+}
+
+func (rm *RelayManager) processMessage(relayMessage []interface{}, eventChan chan<- string) {
+	if len(relayMessage) == 0 {
+		return
+	}
+
+	relayMsgType := relayMessage[0]
+
+	switch relayMsgType {
+	case "EVENT":
+		handler.HandleEvent(relayMessage)
+		eventChan <- "test"
+	case "NOTICE":
+		handler.HandleNotice(relayMessage)
+	case "EOSE":
+		handler.HandleEOSE(relayMessage)
+	default:
+		fmt.Printf("Unknown message type received: %v\n", relayMsgType)
 	}
 }
 
@@ -106,7 +157,7 @@ func (rm *RelayManager) writeLoop(conn *websocket.Conn, relayUrl string, writeCh
 			err := conn.WriteMessage(websocket.TextMessage, msg)
 			if err != nil {
 				fmt.Printf("Error sending subscription request to relay: %v\n", err)
-				continue
+				break
 			}
 		}
 	}

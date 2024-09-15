@@ -77,18 +77,15 @@ import (
 // 	<-forever
 // }
 
-// func userNotes(relayUrls []string, userHexKey string, notesFinished chan<- string) {
-// 	ctx, cancel := context.WithCancel(context.Background())
-// 	defer cancel()
-// 	for _, url := range relayUrls {
-// 		var noteWg sync.WaitGroup
-// 		noteWg.Add(1)
-// 		go func(url string) {
-// 			defer noteWg.Done()
-// 			relay.GetUserNotes(ctx, cancel, url, userHexKey, notesFinished)
-// 		}(url)
-// 	}
-// }
+func userNotes(relayUrls []string, userHexKey string, notesFinished chan<- string) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	for _, url := range relayUrls {
+		go func(url string) {
+			relay.GetUserNotes(ctx, cancel, url, userHexKey, notesFinished)
+		}(url)
+	}
+}
 
 func metadataSetQueue(conn *amqp.Connection, userHexKey string) {
 	fmt.Println("apple")
@@ -204,15 +201,17 @@ func userMetadataQueue(relayUrls []string) {
 			}
 
 			<-metadataSet
+			fmt.Println("past metadata set channel")
 			metadataSetQueue(conn, userHexKey)
 
-			// for _, url := range relayUrls {
-			// 	go func(url string, conn *amqp.Connection) {
-			// 		userNotes(relayUrls, userHexKey, notesFinished)
-			// 	}(url, conn)
-			// }
+			for _, url := range relayUrls {
+				go func(url string, conn *amqp.Connection) {
+					userNotes(relayUrls, userHexKey, notesFinished)
+				}(url, conn)
+			}
 
 			<-notesFinished
+			fmt.Println("past notes finsished channel")
 			// followList(relayUrls, userHexKey)
 		}(d)
 	}
