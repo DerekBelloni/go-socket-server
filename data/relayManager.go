@@ -8,25 +8,29 @@ import (
 	"log"
 	"net/http"
 	"sync"
+	"time"
 
 	"github.com/DerekBelloni/go-socket-server/handler"
 	"github.com/gorilla/websocket"
 )
 
 type RelayManager struct {
-	connections map[string]*websocket.Conn
-	mutex       sync.RWMutex
-	eventChans  map[string]chan string
-	readChans   map[string]chan []byte
-	writeChans  map[string]chan []byte
+	connections    map[string]*websocket.Conn
+	mutex          sync.RWMutex
+	eventChans     map[string]chan string
+	readChans      map[string]chan []byte
+	writeChans     map[string]chan []byte
+	noRelaysActive chan string
+	activeRelays   []string
 }
 
 func NewRelayManager() *RelayManager {
 	return &RelayManager{
-		connections: make(map[string]*websocket.Conn),
-		eventChans:  make(map[string]chan string),
-		readChans:   make(map[string]chan []byte),
-		writeChans:  make(map[string]chan []byte),
+		connections:  make(map[string]*websocket.Conn),
+		eventChans:   make(map[string]chan string),
+		readChans:    make(map[string]chan []byte),
+		writeChans:   make(map[string]chan []byte),
+		activeRelays: make([]string, 10),
 	}
 }
 
@@ -37,6 +41,7 @@ func (rm *RelayManager) GetConnection(relayUrl string) (chan []byte, chan string
 	conn, writeChan, readChan, eventChan, err := rm.getExistingConnection(relayUrl)
 
 	if err == nil && rm.isConnected(relayUrl) {
+		rm.activeRelays = append(rm.activeRelays, relayUrl)
 		go rm.writeLoop(conn, relayUrl, writeChan)
 		go rm.readLoop(conn, relayUrl, readChan)
 		go rm.processReadChannel(readChan, relayUrl, eventChan)
@@ -74,6 +79,7 @@ func (rm *RelayManager) createNewConnection(relayUrl string) (chan []byte, chan 
 	rm.readChans[relayUrl] = readChan
 	rm.writeChans[relayUrl] = writeChan
 	rm.connections[relayUrl] = conn
+	rm.activeRelays = append(rm.activeRelays, relayUrl)
 
 	go rm.writeLoop(conn, relayUrl, writeChan)
 	go rm.readLoop(conn, relayUrl, readChan)
@@ -138,6 +144,7 @@ func (rm *RelayManager) readLoop(conn *websocket.Conn, relayUrl string, readChan
 		} else if messageType == websocket.BinaryMessage {
 			log.Printf("Received unexpected binary message from relay: %v\n", relayUrl)
 		}
+		time.Sleep(2 * time.Second)
 	}
 }
 
@@ -145,16 +152,16 @@ func (rm *RelayManager) processReadChannel(readChan <-chan []byte, relayUrl stri
 	for msg := range readChan {
 		var relayMessage []interface{}
 		err := json.Unmarshal(msg, &relayMessage)
-		fmt.Printf("relaymessage: %v, relay: %v\n\n", relayMessage, relayUrl)
+
 		if err != nil {
 			log.Printf("Error unmarshalling relay message: %v\n", err)
 			continue
 		}
-		rm.processMessage(relayMessage, eventChan)
+		rm.processMessage(relayMessage, relayUrl, eventChan)
 	}
 }
 
-func (rm *RelayManager) processMessage(relayMessage []interface{}, eventChan chan string) {
+func (rm *RelayManager) processMessage(relayMessage []interface{}, relayUrl string, eventChan chan string) {
 	if len(relayMessage) == 0 {
 		return
 	}
@@ -163,13 +170,15 @@ func (rm *RelayManager) processMessage(relayMessage []interface{}, eventChan cha
 
 	switch relayMsgType {
 	case "EVENT":
+		fmt.Printf("message in switch statement: %v, relay: %v\n", relayMessage, relayUrl)
 		handler.HandleEvent(relayMessage, eventChan)
 	case "NOTICE":
 		handler.HandleNotice(relayMessage)
 	case "EOSE":
-		handler.HandleEOSE(relayMessage)
+		handler.HandleEOSE(relayMessage, relayUrl)
 	default:
 		fmt.Printf("Unknown message type received: %v\n", relayMsgType)
+		//delete here?
 	}
 }
 
@@ -192,12 +201,10 @@ func (rm *RelayManager) CloseAllConnections() {
 }
 
 func (rm *RelayManager) isConnected(relayUrl string) bool {
-	rm.mutex.Lock()
-	defer rm.mutex.Unlock()
 	conn, connExists := rm.connections[relayUrl]
 	if !connExists {
 		return false
 	}
-	fmt.Printf("[underlying connection]: %v\n", conn.UnderlyingConn())
+
 	return conn.UnderlyingConn() == nil
 }

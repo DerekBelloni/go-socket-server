@@ -88,7 +88,6 @@ func userNotes(relayUrls []string, userHexKey string, notesFinished chan<- strin
 }
 
 func metadataSetQueue(conn *amqp.Connection, userHexKey string) {
-	fmt.Println("apple")
 	channel, err := conn.Channel()
 	if err != nil {
 		fmt.Println("Failed to open a channel")
@@ -179,22 +178,6 @@ func userMetadataQueue(relayUrls []string) {
 		fmt.Println("Failed to register a consumer")
 	}
 
-	// var metaWg sync.WaitGroup
-	// var notesWg sync.WaitGroup
-
-	// go func() {
-	// 	for relayUrl := range finished {
-	// 		fmt.Printf("Finished processing metadata for relay: %s\n", relayUrl)
-	// 		// metaWg.Done()
-	// 	}
-	// }()
-	// go func() {
-	// 	for relayUrl := range notesFinished {
-	// 		fmt.Printf("Finished processing user notes relay: %s\n", relayUrl)
-	// 		notesWg.Done()
-	// 	}
-	// }()
-
 	for d := range msgs {
 		go func(d amqp.Delivery) {
 			userHexKey := string(d.Body)
@@ -254,10 +237,10 @@ func userMetadataQueue(relayUrls []string) {
 func main() {
 	relayUrls := []string{
 		"wss://relay.damus.io",
-		"wss://nos.lol",
-		"wss://purplerelay.com",
+		// "wss://nos.lol",
+		// "wss://purplerelay.com",
 		"wss://relay.primal.net",
-		"wss://relay.nostr.band",
+		// "wss://relay.nostr.band",
 	}
 
 	var forever chan struct{}
