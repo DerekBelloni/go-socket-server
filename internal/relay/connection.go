@@ -1,7 +1,6 @@
 package relay
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/DerekBelloni/go-socket-server/data"
@@ -17,17 +16,17 @@ func initConnection(relayUrl string) (chan []byte, chan string, error) {
 	return relayManager.GetConnection(relayUrl)
 }
 
-func GetUserMetadata(relayUrl string, finished chan<- string, mqMsgType string, userHexKey string, metadataSet chan<- string) {
+func GetUserMetadata(relayUrl string, userHexKey string, metadataFinished chan<- string) {
 	writeChan, eventChan, err := initConnection(relayUrl)
 
 	if err != nil {
 		fmt.Printf("Dial error: %v\n", err)
 	}
-	MetadataSubscription(relayUrl, userHexKey, writeChan, eventChan, metadataSet)
 
+	MetadataSubscription(relayUrl, userHexKey, writeChan, eventChan, metadataFinished)
 }
 
-func GetUserNotes(ctx context.Context, cancel context.CancelFunc, relayUrl string, userHexKey string, notesFinished chan<- string) {
+func GetUserNotes(relayUrl string, userHexKey string, notesFinished chan<- string) {
 	writeChan, eventChan, err := initConnection(relayUrl)
 	fmt.Println("user notes in connection.go")
 	if err != nil {
@@ -35,6 +34,16 @@ func GetUserNotes(ctx context.Context, cancel context.CancelFunc, relayUrl strin
 	}
 
 	UserNotesSubscription(relayUrl, userHexKey, writeChan, eventChan, notesFinished)
+}
+
+func GetFollowList(relayUrl string, userHexKey string, followsFinished chan<- string) {
+	writeChan, eventChan, err := initConnection(relayUrl)
+
+	if err != nil {
+		fmt.Printf("Dial error: %v\n", err)
+	}
+
+	FollowListSubscription(relayUrl, userHexKey, writeChan, eventChan, followsFinished)
 }
 
 // func SendNoteToRelay(relayUrl string, newNote data.NewNote, noteFinished chan<- string) {
@@ -59,16 +68,4 @@ func GetUserNotes(ctx context.Context, cancel context.CancelFunc, relayUrl strin
 // 	defer conn.Close()
 
 // 	handleClassifiedListings(conn, relayUrl)
-// }
-
-// func GetFollowList(ctx context.Context, cancel context.CancelFunc, relayUrl string, userHexKey string) {
-// 	conn, _, err := websocket.DefaultDialer.Dial(relayUrl, nil)
-// 	log := logrus.WithField("follow list, relay", relayUrl)
-// 	// conn, err := getConnection(relayUrl)
-// 	if err != nil {
-// 		log.Error("Dial error: ", err)
-// 	}
-// 	defer conn.Close()
-
-// 	handleFollowList(ctx, cancel, conn, relayUrl, userHexKey)
 // }

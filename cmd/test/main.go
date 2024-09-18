@@ -77,13 +77,39 @@ import (
 // 	<-forever
 // }
 
+// func classifiedListings(relayUrls []string) {
+// 	var innerWg sync.WaitGroup
+// 	for _, url := range relayUrls {
+// 		innerWg.Add(1)
+// 		go func(relayUrl string) {
+// 			defer innerWg.Done()
+// 			relay.GetClassifiedListings(relayUrl)
+// 		}(url)
+// 		innerWg.Wait()
+// 	}
+// }
+
 func userNotes(relayUrls []string, userHexKey string, notesFinished chan<- string) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	for _, url := range relayUrls {
+	for _, relayUrl := range relayUrls {
+		go func(relayUrl string) {
+			relay.GetUserNotes(relayUrl, userHexKey, notesFinished)
+		}(relayUrl)
+	}
+}
+
+func userMetadata(relayUrls []string, userHexKey string, metadataFinished chan<- string) {
+	for _, relayUrl := range relayUrls {
 		go func(url string) {
-			relay.GetUserNotes(ctx, cancel, url, userHexKey, notesFinished)
-		}(url)
+			relay.GetUserMetadata(url, userHexKey, metadataFinished)
+		}(relayUrl)
+	}
+}
+
+func followList(relayUrls []string, userHexKey string, followsFinished chan<- string) {
+	for _, relayUrl := range relayUrls {
+		go func(relayUrl string) {
+			relay.GetFollowList(relayUrl, userHexKey, followsFinished)
+		}(relayUrl)
 	}
 }
 
@@ -128,16 +154,11 @@ func metadataSetQueue(conn *amqp.Connection, userHexKey string) {
 	}
 }
 
-// this can go in queue handler
 func userMetadataQueue(relayUrls []string) {
 	forever := make(chan struct{})
-	finished := make(chan string)
+	metadataFinished := make(chan string)
 	notesFinished := make(chan string)
-	metadataSet := make(chan string)
-
-	// queueName := "user_pub_key"
-
-	// rabbitMQMsgs, conn := handler.ConsumeQueue(queueName)
+	followsFinished := make(chan string)
 
 	conn, err := amqp.Dial("amqp://guest:guest@localhost:5672/")
 	if err != nil {
@@ -182,25 +203,15 @@ func userMetadataQueue(relayUrls []string) {
 		go func(d amqp.Delivery) {
 			userHexKey := string(d.Body)
 			if userHexKey != "" {
-				for _, url := range relayUrls {
-					go func(url string, conn *amqp.Connection) {
-						relay.GetUserMetadata(url, finished, "user_metadata", userHexKey, metadataSet)
-					}(url, conn)
-				}
+				userMetadata(relayUrls, userHexKey, metadataFinished)
+				<-metadataFinished
 
-				<-metadataSet
-				fmt.Println("past metadata set channel")
-				metadataSetQueue(conn, userHexKey)
-
-				for _, url := range relayUrls {
-					go func(url string, conn *amqp.Connection) {
-						userNotes(relayUrls, userHexKey, notesFinished)
-					}(url, conn)
-				}
-
+				userNotes(relayUrls, userHexKey, notesFinished)
 				<-notesFinished
 				fmt.Println("past notes finsished channel")
-				// followList(relayUrls, userHexKey)
+
+				followList(relayUrls, userHexKey, followsFinished)
+				<-followsFinished
 			}
 		}(d)
 	}
@@ -209,43 +220,17 @@ func userMetadataQueue(relayUrls []string) {
 	<-forever
 }
 
-// func classifiedListings(relayUrls []string) {
-// 	var innerWg sync.WaitGroup
-// 	for _, url := range relayUrls {
-// 		innerWg.Add(1)
-// 		go func(relayUrl string) {
-// 			defer innerWg.Done()
-// 			relay.GetClassifiedListings(relayUrl)
-// 		}(url)
-// 		innerWg.Wait()
-// 	}
-// }
-
-// func followList(relayUrls []string, userHexKey string) {
-// 	ctx, cancel := context.WithCancel(context.Background())
-// 	defer cancel()
-// 	var wg sync.WaitGroup
-// 	for _, relayUrl := range relayUrls {
-// 		wg.Add(1)
-// 		go func(relayUrl string) {
-// 			defer wg.Done()
-// 			relay.GetFollowList(ctx, cancel, relayUrl, userHexKey)
-// 		}(relayUrl)
-// 	}
-// }
-
 func main() {
 	relayUrls := []string{
 		"wss://relay.damus.io",
-		// "wss://nos.lol",
-		// "wss://purplerelay.com",
+		"wss://nos.lol",
+		"wss://purplerelay.com",
 		"wss://relay.primal.net",
-		// "wss://relay.nostr.band",
+		"wss://relay.nostr.band",
 	}
 
 	var forever chan struct{}
 
-	// Queue: User Metadata
 	go userMetadataQueue(relayUrls)
 
 	// Queue: Posting a Note

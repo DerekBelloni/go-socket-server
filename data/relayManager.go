@@ -128,7 +128,7 @@ func (rm *RelayManager) readLoop(conn *websocket.Conn, relayUrl string, readChan
 				log.Printf("Error reading message from relay: %v, error: %v\n", relayUrl, err)
 				continue
 			}
-			// Optional: Parse JSON
+
 			var jsonMessage []json.RawMessage
 			if err := json.Unmarshal(message, &jsonMessage); err != nil {
 				log.Printf("Error parsing JSON from relay: %v, error: %v\n", relayUrl, err)
@@ -175,10 +175,9 @@ func (rm *RelayManager) processMessage(relayMessage []interface{}, relayUrl stri
 	case "NOTICE":
 		handler.HandleNotice(relayMessage)
 	case "EOSE":
-		handler.HandleEOSE(relayMessage, relayUrl)
+		handler.HandleEOSE(relayMessage, relayUrl, eventChan)
 	default:
 		fmt.Printf("Unknown message type received: %v\n", relayMsgType)
-		//delete here?
 	}
 }
 

@@ -43,7 +43,6 @@ func MetadataSubscription(relayUrl string, userHexKey string, writeChan chan<- [
 }
 
 func UserNotesSubscription(relayUrl string, userHexKey string, writeChan chan<- []byte, eventChan <-chan string, notesFinished chan<- string) {
-	fmt.Println("subscription notes")
 	subscriptionID, err := generateRandomString(16)
 	if err != nil {
 		fmt.Printf("Error generating a subscription id: %v\n", err)
@@ -67,5 +66,34 @@ func UserNotesSubscription(relayUrl string, userHexKey string, writeChan chan<- 
 	notes := <-eventChan
 	if notes != "" {
 		notesFinished <- relayUrl
+	}
+}
+
+func FollowListSubscription(relayUrl string, userHexKey string, writeChan chan<- []byte, eventChan <-chan string, followsFinished chan<- string) {
+	subscriptionID, err := generateRandomString(16)
+	if err != nil {
+		fmt.Printf("Error generating a subscription id: %v\n", err)
+	}
+
+	subscriptionRequest := []interface{}{
+		"REQ",
+		subscriptionID,
+		map[string]interface{}{
+			"kinds": []int{3},
+			"limit": 1,
+			"tags": [][]string{
+				{"p", userHexKey, relayUrl},
+			},
+		},
+	}
+
+	subscriptionRequestJSON, err := json.Marshal(subscriptionRequest)
+	if err != nil {
+		fmt.Printf("Error marshalling subscription request: %v\n ", err)
+	}
+	writeChan <- subscriptionRequestJSON
+	follows := <-eventChan
+	if follows != "" {
+		followsFinished <- relayUrl
 	}
 }
