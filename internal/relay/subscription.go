@@ -79,11 +79,9 @@ func FollowListSubscription(relayUrl string, userHexKey string, writeChan chan<-
 		"REQ",
 		subscriptionID,
 		map[string]interface{}{
-			"kinds": []int{3},
-			"limit": 1,
-			"tags": [][]string{
-				{"p", userHexKey, relayUrl},
-			},
+			"kinds":   []int{3},
+			"authors": []string{userHexKey},
+			"limit":   1,
 		},
 	}
 
