@@ -3,8 +3,8 @@ package relay
 import (
 	"fmt"
 
-	"github.com/DerekBelloni/go-socket-server/data"
-	"github.com/DerekBelloni/go-socket-server/handler"
+	"github.com/DerekBelloni/go-socket-server/internal/data"
+	"github.com/DerekBelloni/go-socket-server/internal/handler"
 )
 
 var relayManager *data.RelayManager
@@ -45,6 +45,10 @@ func GetFollowList(relayUrl string, userHexKey string, followsFinished chan<- st
 	}
 
 	handler.FollowListSubscription(relayUrl, userHexKey, writeChan, eventChan, followsFinished)
+}
+
+func GetFollowListMetadata(relayUrl string, pubKeys []string) {
+
 }
 
 // func SendNoteToRelay(relayUrl string, newNote data.NewNote, noteFinished chan<- string) {
