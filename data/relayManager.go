@@ -170,7 +170,6 @@ func (rm *RelayManager) processMessage(relayMessage []interface{}, relayUrl stri
 
 	switch relayMsgType {
 	case "EVENT":
-		fmt.Printf("message in switch statement: %v, relay: %v\n", relayMessage, relayUrl)
 		handler.HandleEvent(relayMessage, eventChan)
 	case "NOTICE":
 		handler.HandleNotice(relayMessage)
