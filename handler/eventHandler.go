@@ -19,10 +19,10 @@ func extractPubKey(tag interface{}) (string, bool) {
 	return pubKey, true
 }
 
-func prepareFollowsPubKeys(content map[string]interface{}, eventChan chan<- string) []strings {
+func prepareFollowsPubKeys(content map[string]interface{}, eventChan chan<- string) []string {
 	tags, ok := content["tags"].([]interface{})
 	if !ok {
-		return
+		return nil
 	}
 
 	var pubKeys []string
