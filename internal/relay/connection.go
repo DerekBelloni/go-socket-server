@@ -50,7 +50,7 @@ func (rc *RelayConnection) GetFollowList(relayUrl string, userHexKey string, fol
 }
 
 func (rc *RelayConnection) GetFollowListMetadata(relayUrl string, pubKeys []string) {
-	fmt.Println("never going to quit")
+	fmt.Printf("never going to quit: %v\n", pubKeys)
 }
 
 // func SendNoteToRelay(relayUrl string, newNote data.NewNote, noteFinished chan<- string) {

@@ -7,7 +7,6 @@ import (
 )
 
 func ExtractPubKey(tag interface{}) (string, bool) {
-
 	tagSlice, ok := tag.([]interface{})
 	if !ok || len(tagSlice) < 2 {
 		return "", false
@@ -48,7 +47,7 @@ func HandleEvent(eventData []interface{}, eventChan chan string, connector core.
 			notesQueue(eventData, eventChan)
 		case 3:
 			// pull the ids out of the follows, go get metadata for each one
-			followListQueue(eventData, eventChan)
+			// followListQueue(eventData, eventChan)
 			pubKeys := PrepareFollowsPubKeys(content, eventChan)
 			connector.GetFollowListMetadata(relayUrl, pubKeys)
 		}
