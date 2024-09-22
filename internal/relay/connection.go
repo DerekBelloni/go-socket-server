@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/DerekBelloni/go-socket-server/internal/data"
-	"github.com/DerekBelloni/go-socket-server/internal/handler"
+	"github.com/DerekBelloni/go-socket-server/internal/subscriptions"
 )
 
 var relayManager *data.RelayManager
@@ -24,7 +24,7 @@ func GetUserMetadata(relayUrl string, userHexKey string, metadataFinished chan<-
 		fmt.Printf("Dial error: %v\n", err)
 	}
 
-	handler.MetadataSubscription(relayUrl, userHexKey, writeChan, eventChan, metadataFinished)
+	subscriptions.MetadataSubscription(relayUrl, userHexKey, writeChan, eventChan, metadataFinished)
 }
 
 func GetUserNotes(relayUrl string, userHexKey string, notesFinished chan<- string) {
@@ -34,7 +34,7 @@ func GetUserNotes(relayUrl string, userHexKey string, notesFinished chan<- strin
 		fmt.Printf("Dial error: %v\n", err)
 	}
 
-	handler.UserNotesSubscription(relayUrl, userHexKey, writeChan, eventChan, notesFinished)
+	subscriptions.UserNotesSubscription(relayUrl, userHexKey, writeChan, eventChan, notesFinished)
 }
 
 func GetFollowList(relayUrl string, userHexKey string, followsFinished chan<- string) {
@@ -44,7 +44,7 @@ func GetFollowList(relayUrl string, userHexKey string, followsFinished chan<- st
 		fmt.Printf("Dial error: %v\n", err)
 	}
 
-	handler.FollowListSubscription(relayUrl, userHexKey, writeChan, eventChan, followsFinished)
+	subscriptions.FollowListSubscription(relayUrl, userHexKey, writeChan, eventChan, followsFinished)
 }
 
 func GetFollowListMetadata(relayUrl string, pubKeys []string) {
