@@ -6,6 +6,7 @@ import (
 	"log"
 	"time"
 
+	"github.com/DerekBelloni/go-socket-server/internal/data"
 	"github.com/DerekBelloni/go-socket-server/internal/relay"
 	amqp "github.com/rabbitmq/amqp091-go"
 )
@@ -89,26 +90,26 @@ import (
 // 	}
 // }
 
-func userNotes(relayUrls []string, userHexKey string, notesFinished chan<- string) {
+func userNotes(relayUrls []string, relayConnection *relay.RelayConnection, userHexKey string, notesFinished chan<- string) {
 	for _, relayUrl := range relayUrls {
 		go func(relayUrl string) {
-			relay.GetUserNotes(relayUrl, userHexKey, notesFinished)
+			relayConnection.GetUserNotes(relayUrl, userHexKey, notesFinished)
 		}(relayUrl)
 	}
 }
 
-func userMetadata(relayUrls []string, userHexKey string, metadataFinished chan<- string) {
+func userMetadata(relayUrls []string, relayConnection *relay.RelayConnection, userHexKey string, metadataFinished chan<- string) {
 	for _, relayUrl := range relayUrls {
 		go func(url string) {
-			relay.GetUserMetadata(url, userHexKey, metadataFinished)
+			relayConnection.GetUserMetadata(url, userHexKey, metadataFinished)
 		}(relayUrl)
 	}
 }
 
-func followList(relayUrls []string, userHexKey string, followsFinished chan<- string) {
+func followList(relayUrls []string, relayConnection *relay.RelayConnection, userHexKey string, followsFinished chan<- string) {
 	for _, relayUrl := range relayUrls {
 		go func(relayUrl string) {
-			relay.GetFollowList(relayUrl, userHexKey, followsFinished)
+			relayConnection.GetFollowList(relayUrl, userHexKey, followsFinished)
 		}(relayUrl)
 	}
 }
@@ -154,7 +155,7 @@ func metadataSetQueue(conn *amqp.Connection, userHexKey string) {
 	}
 }
 
-func userMetadataQueue(relayUrls []string) {
+func userMetadataQueue(relayUrls []string, relayConnection *relay.RelayConnection) {
 	forever := make(chan struct{})
 	metadataFinished := make(chan string)
 	notesFinished := make(chan string)
@@ -203,14 +204,14 @@ func userMetadataQueue(relayUrls []string) {
 		go func(d amqp.Delivery) {
 			userHexKey := string(d.Body)
 			if userHexKey != "" {
-				userMetadata(relayUrls, userHexKey, metadataFinished)
+				userMetadata(relayUrls, relayConnection, userHexKey, metadataFinished)
 				<-metadataFinished
 
-				userNotes(relayUrls, userHexKey, notesFinished)
+				userNotes(relayUrls, relayConnection, userHexKey, notesFinished)
 				<-notesFinished
 				fmt.Println("past notes finsished channel")
 
-				followList(relayUrls, userHexKey, followsFinished)
+				followList(relayUrls, relayConnection, userHexKey, followsFinished)
 				<-followsFinished
 			}
 		}(d)
@@ -221,6 +222,10 @@ func userMetadataQueue(relayUrls []string) {
 }
 
 func main() {
+	relayManager := data.NewRelayManager(nil)
+	relayConnection := relay.NewRelayConnection(relayManager)
+	relayManager.Connector = relayConnection
+
 	relayUrls := []string{
 		"wss://relay.damus.io",
 		"wss://nos.lol",
@@ -231,7 +236,7 @@ func main() {
 
 	var forever chan struct{}
 
-	go userMetadataQueue(relayUrls)
+	go userMetadataQueue(relayUrls, relayConnection)
 
 	// Queue: Posting a Note
 	// go createNote(relayUrls)

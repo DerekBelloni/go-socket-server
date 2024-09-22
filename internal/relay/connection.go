@@ -7,18 +7,20 @@ import (
 	"github.com/DerekBelloni/go-socket-server/internal/subscriptions"
 )
 
-var relayManager *data.RelayManager
-
-func init() {
-	relayManager = data.NewRelayManager()
+type RelayConnection struct {
+	relayManager *data.RelayManager
 }
 
-func initConnection(relayUrl string) (chan []byte, chan string, error) {
-	return relayManager.GetConnection(relayUrl)
+func NewRelayConnection(manager *data.RelayManager) *RelayConnection {
+	return &RelayConnection{relayManager: manager}
 }
 
-func GetUserMetadata(relayUrl string, userHexKey string, metadataFinished chan<- string) {
-	writeChan, eventChan, err := initConnection(relayUrl)
+func (rc *RelayConnection) GetConnection(relayUrl string) (chan []byte, chan string, error) {
+	return rc.relayManager.GetConnection(relayUrl)
+}
+
+func (rc *RelayConnection) GetUserMetadata(relayUrl string, userHexKey string, metadataFinished chan<- string) {
+	writeChan, eventChan, err := rc.GetConnection(relayUrl)
 
 	if err != nil {
 		fmt.Printf("Dial error: %v\n", err)
@@ -27,8 +29,8 @@ func GetUserMetadata(relayUrl string, userHexKey string, metadataFinished chan<-
 	subscriptions.MetadataSubscription(relayUrl, userHexKey, writeChan, eventChan, metadataFinished)
 }
 
-func GetUserNotes(relayUrl string, userHexKey string, notesFinished chan<- string) {
-	writeChan, eventChan, err := initConnection(relayUrl)
+func (rc *RelayConnection) GetUserNotes(relayUrl string, userHexKey string, notesFinished chan<- string) {
+	writeChan, eventChan, err := rc.GetConnection(relayUrl)
 	fmt.Println("user notes in connection.go")
 	if err != nil {
 		fmt.Printf("Dial error: %v\n", err)
@@ -37,8 +39,8 @@ func GetUserNotes(relayUrl string, userHexKey string, notesFinished chan<- strin
 	subscriptions.UserNotesSubscription(relayUrl, userHexKey, writeChan, eventChan, notesFinished)
 }
 
-func GetFollowList(relayUrl string, userHexKey string, followsFinished chan<- string) {
-	writeChan, eventChan, err := initConnection(relayUrl)
+func (rc *RelayConnection) GetFollowList(relayUrl string, userHexKey string, followsFinished chan<- string) {
+	writeChan, eventChan, err := rc.GetConnection(relayUrl)
 
 	if err != nil {
 		fmt.Printf("Dial error: %v\n", err)
@@ -47,8 +49,8 @@ func GetFollowList(relayUrl string, userHexKey string, followsFinished chan<- st
 	subscriptions.FollowListSubscription(relayUrl, userHexKey, writeChan, eventChan, followsFinished)
 }
 
-func GetFollowListMetadata(relayUrl string, pubKeys []string) {
-
+func (rc *RelayConnection) GetFollowListMetadata(relayUrl string, pubKeys []string) {
+	fmt.Println("never going to quit")
 }
 
 // func SendNoteToRelay(relayUrl string, newNote data.NewNote, noteFinished chan<- string) {

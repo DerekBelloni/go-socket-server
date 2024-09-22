@@ -10,7 +10,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/DerekBelloni/go-socket-server/handler"
+	"github.com/DerekBelloni/go-socket-server/internal/core"
+	"github.com/DerekBelloni/go-socket-server/internal/handler"
 	"github.com/gorilla/websocket"
 )
 
@@ -22,15 +23,17 @@ type RelayManager struct {
 	writeChans     map[string]chan []byte
 	noRelaysActive chan string
 	activeRelays   []string
+	Connector      core.RelayConnector
 }
 
-func NewRelayManager() *RelayManager {
+func NewRelayManager(connector core.RelayConnector) *RelayManager {
 	return &RelayManager{
 		connections:  make(map[string]*websocket.Conn),
 		eventChans:   make(map[string]chan string),
 		readChans:    make(map[string]chan []byte),
 		writeChans:   make(map[string]chan []byte),
 		activeRelays: make([]string, 10),
+		Connector:    connector,
 	}
 }
 
@@ -170,7 +173,7 @@ func (rm *RelayManager) processMessage(relayMessage []interface{}, relayUrl stri
 
 	switch relayMsgType {
 	case "EVENT":
-		handler.HandleEvent(relayMessage, eventChan)
+		handler.HandleEvent(relayMessage, eventChan, rm.Connector, relayUrl)
 	case "NOTICE":
 		handler.HandleNotice(relayMessage)
 	case "EOSE":

@@ -2,9 +2,11 @@ package handler
 
 import (
 	"fmt"
+
+	"github.com/DerekBelloni/go-socket-server/internal/core"
 )
 
-func extractPubKey(tag interface{}) (string, bool) {
+func ExtractPubKey(tag interface{}) (string, bool) {
 
 	tagSlice, ok := tag.([]interface{})
 	if !ok || len(tagSlice) < 2 {
@@ -19,7 +21,7 @@ func extractPubKey(tag interface{}) (string, bool) {
 	return pubKey, true
 }
 
-func prepareFollowsPubKeys(content map[string]interface{}, eventChan chan<- string) []string {
+func PrepareFollowsPubKeys(content map[string]interface{}, eventChan chan<- string) []string {
 	tags, ok := content["tags"].([]interface{})
 	if !ok {
 		return nil
@@ -27,7 +29,7 @@ func prepareFollowsPubKeys(content map[string]interface{}, eventChan chan<- stri
 
 	var pubKeys []string
 	for _, tag := range tags {
-		pubKey, ok := extractPubKey(tag)
+		pubKey, ok := ExtractPubKey(tag)
 		if !ok {
 			continue
 		}
@@ -36,7 +38,7 @@ func prepareFollowsPubKeys(content map[string]interface{}, eventChan chan<- stri
 	return pubKeys
 }
 
-func HandleEvent(eventData []interface{}, eventChan chan string) {
+func HandleEvent(eventData []interface{}, eventChan chan string, connector core.RelayConnector, relayUrl string) {
 	if content, ok := eventData[2].(map[string]interface{}); ok {
 		kind, _ := content["kind"].(float64)
 		switch kind {
@@ -47,8 +49,8 @@ func HandleEvent(eventData []interface{}, eventChan chan string) {
 		case 3:
 			// pull the ids out of the follows, go get metadata for each one
 			followListQueue(eventData, eventChan)
-			// pubKeys := prepareFollowsPubKeys(content, eventChan)
-			// handler.Su
+			pubKeys := PrepareFollowsPubKeys(content, eventChan)
+			connector.GetFollowListMetadata(relayUrl, pubKeys)
 		}
 	}
 
@@ -62,3 +64,68 @@ func HandleEOSE(eoseData []interface{}, relayUrl string, eventChan chan<- string
 	fmt.Printf("EOSE received: %v, %v\n\n", eoseData, relayUrl)
 	eventChan <- relayUrl
 }
+
+// package handler
+
+// import (
+// 	"fmt"
+// )
+
+// func extractPubKey(tag interface{}) (string, bool) {
+
+// 	tagSlice, ok := tag.([]interface{})
+// 	if !ok || len(tagSlice) < 2 {
+// 		return "", false
+// 	}
+
+// 	pubKey, ok := tagSlice[1].(string)
+// 	if !ok {
+// 		return "", false
+// 	}
+
+// 	return pubKey, true
+// }
+
+// func prepareFollowsPubKeys(content map[string]interface{}, eventChan chan<- string) []string {
+// 	tags, ok := content["tags"].([]interface{})
+// 	if !ok {
+// 		return nil
+// 	}
+
+// 	var pubKeys []string
+// 	for _, tag := range tags {
+// 		pubKey, ok := extractPubKey(tag)
+// 		if !ok {
+// 			continue
+// 		}
+// 		pubKeys = append(pubKeys, pubKey)
+// 	}
+// 	return pubKeys
+// }
+
+// func HandleEvent(eventData []interface{}, eventChan chan string) {
+// 	if content, ok := eventData[2].(map[string]interface{}); ok {
+// 		kind, _ := content["kind"].(float64)
+// 		switch kind {
+// 		case 0:
+// 			metadataQueue(eventData, eventChan)
+// 		case 1:
+// 			notesQueue(eventData, eventChan)
+// 		case 3:
+// 			// pull the ids out of the follows, go get metadata for each one
+// 			followListQueue(eventData, eventChan)
+// 			// pubKeys := prepareFollowsPubKeys(content, eventChan)
+
+// 		}
+// 	}
+
+// }
+
+// func HandleNotice(noticeData []interface{}) {
+// 	fmt.Printf("Notice received: %v\n", noticeData)
+// }
+
+// func HandleEOSE(eoseData []interface{}, relayUrl string, eventChan chan<- string) {
+// 	fmt.Printf("EOSE received: %v, %v\n\n", eoseData, relayUrl)
+// 	eventChan <- relayUrl
+// }
