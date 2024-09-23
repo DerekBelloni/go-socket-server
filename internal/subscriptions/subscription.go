@@ -86,3 +86,23 @@ func FollowListSubscription(relayUrl string, userHexKey string, writeChan chan<-
 		followsFinished <- relayUrl
 	}
 }
+
+func FollowListMetadataSubscription(relayUrl string, pubKeys []string, writeChan chan<- []byte, eventChan <-chan string) {
+	subscriptionID, err := generateRandomString(16)
+	if err != nil {
+		fmt.Printf("Error generating a subscription id: %v\n", err)
+	}
+	subscriptionRequest := []interface{}{
+		"REQ",
+		subscriptionID,
+		map[string]interface{}{
+			"kinds":   []int{0},
+			"authors": pubKeys,
+		},
+	}
+	subscriptionRequestJSON, err := json.Marshal(subscriptionRequest)
+	if err != nil {
+		fmt.Printf("Error marshalling subscription request: %v\n ", err)
+	}
+	writeChan <- subscriptionRequestJSON
+}

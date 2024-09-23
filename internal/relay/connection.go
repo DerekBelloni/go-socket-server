@@ -50,7 +50,13 @@ func (rc *RelayConnection) GetFollowList(relayUrl string, userHexKey string, fol
 }
 
 func (rc *RelayConnection) GetFollowListMetadata(relayUrl string, pubKeys []string) {
-	fmt.Printf("never going to quit: %v\n", pubKeys)
+	writeChan, eventChan, err := rc.GetConnection(relayUrl)
+
+	if err != nil {
+		fmt.Printf("Diale error: %v\n", err)
+	}
+
+	subscriptions.FollowListMetadataSubscription(relayUrl, pubKeys, writeChan, eventChan)
 }
 
 // func SendNoteToRelay(relayUrl string, newNote data.NewNote, noteFinished chan<- string) {
