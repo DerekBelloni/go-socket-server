@@ -38,22 +38,31 @@ func PrepareFollowsPubKeys(content map[string]interface{}, eventChan chan<- stri
 }
 
 func HandleEvent(eventData []interface{}, eventChan chan string, connector core.RelayConnector, relayUrl string) {
-	if content, ok := eventData[2].(map[string]interface{}); ok {
-		kind, _ := content["kind"].(float64)
-		switch kind {
-		case 0:
-			fmt.Printf("case 0 event data: %v\n", eventData)
-			metadataQueue(eventData, eventChan)
-		case 1:
-			notesQueue(eventData, eventChan)
-		case 3:
-			// pull the ids out of the follows, go get metadata for each one
-			// followListQueue(eventData, eventChan)
-			pubKeys := PrepareFollowsPubKeys(content, eventChan)
-			connector.GetFollowListMetadata(relayUrl, pubKeys)
-		}
+	content, ok := eventData[2].(map[string]interface{})
+	if !ok {
+		fmt.Printf("Could not extract content from event data")
 	}
+	kind, ok := content["kind"].(float64)
+	if !ok {
+		fmt.Printf("Could not extract kind from content")
+	}
+	// pubKey, ok := content["pubkey"].(string)
+	// if !ok {
+	// 	fmt.Printf("Could not extract pubkey from content")
+	// }
 
+	switch kind {
+	case 0:
+		fmt.Printf("case 0 event data, pubkey: %v\n", eventData)
+		metadataQueue(eventData, eventChan)
+	case 1:
+		notesQueue(eventData, eventChan)
+	case 3:
+		// pull the ids out of the follows, go get metadata for each one
+		// followListQueue(eventData, eventChan)
+		followsPubKeys := PrepareFollowsPubKeys(content, eventChan)
+		connector.GetFollowListMetadata(relayUrl, followsPubKeys)
+	}
 }
 
 func HandleNotice(noticeData []interface{}) {
