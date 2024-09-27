@@ -57,3 +57,7 @@ func HandleMetaData(userMetadataJSON []byte, finished chan<- string, relayUrl st
 	conn.Close()
 	finished <- relayUrl
 }
+
+func HandleFollowListPubKeys() {
+
+}

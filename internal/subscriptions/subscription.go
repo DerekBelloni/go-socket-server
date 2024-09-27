@@ -21,7 +21,7 @@ func generateRandomString(length int) (string, error) {
 	}
 	return hex.EncodeToString(bytes), nil
 }
-func MetadataSubscription(ctx context.Context, relayUrl string, userHexKey string, writeChan chan<- []byte, eventChan <-chan string, metadataSet chan<- string) {
+func MetadataSubscription(relayUrl string, userHexKey string, writeChan chan<- []byte, eventChan <-chan string, metadataSet chan<- string) {
 	subscriptionID, err := generateRandomString(16)
 	if err != nil {
 		fmt.Printf("Error generating a subscription id: %v\n", err)
@@ -44,7 +44,7 @@ func MetadataSubscription(ctx context.Context, relayUrl string, userHexKey strin
 		metadataSet <- relayUrl
 	}
 }
-func UserNotesSubscription(ctx context.Context, relayUrl string, userHexKey string, writeChan chan<- []byte, eventChan <-chan string, notesFinished chan<- string) {
+func UserNotesSubscription(relayUrl string, userHexKey string, writeChan chan<- []byte, eventChan <-chan string, notesFinished chan<- string) {
 	subscriptionID, err := generateRandomString(16)
 	if err != nil {
 		fmt.Printf("Error generating a subscription id: %v\n", err)
@@ -68,7 +68,7 @@ func UserNotesSubscription(ctx context.Context, relayUrl string, userHexKey stri
 		notesFinished <- relayUrl
 	}
 }
-func FollowListSubscription(ctx context.Context, relayUrl string, userHexKey string, writeChan chan<- []byte, eventChan <-chan string, followsFinished chan<- string) {
+func FollowListSubscription(relayUrl string, userHexKey string, writeChan chan<- []byte, eventChan <-chan string, followsFinished chan<- string) {
 	subscriptionID, err := generateRandomString(16)
 	if err != nil {
 		fmt.Printf("Error generating a subscription id: %v\n", err)
@@ -93,7 +93,7 @@ func FollowListSubscription(ctx context.Context, relayUrl string, userHexKey str
 	}
 }
 
-func FollowListMetadataSubscription(ctx context.Context, relayUrl string, pubKeys []string, writeChan chan<- []byte, eventChan <-chan string) {
+func FollowListMetadataSubscription(relayUrl string, pubKeys []string, writeChan chan<- []byte, eventChan <-chan string) {
 	subscriptionID, err := generateRandomString(16)
 	if err != nil {
 		fmt.Printf("Error generating a subscription id: %v\n", err)

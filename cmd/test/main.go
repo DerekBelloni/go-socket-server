@@ -94,26 +94,26 @@ func createUserContext(userHexKey string) (context.Context, context.CancelFunc) 
 	return context.WithCancel(context.WithValue(context.Background(), "userPubKey", userHexKey))
 }
 
-func userNotes(ctx context.Context, relayUrls []string, relayConnection *relay.RelayConnection, userHexKey string, notesFinished chan<- string) {
+func userNotes(relayUrls []string, relayConnection *relay.RelayConnection, userHexKey string, notesFinished chan<- string) {
 	for _, relayUrl := range relayUrls {
 		go func(relayUrl string) {
-			relayConnection.GetUserNotes(ctx, relayUrl, userHexKey, notesFinished)
+			relayConnection.GetUserNotes(relayUrl, userHexKey, notesFinished)
 		}(relayUrl)
 	}
 }
 
-func userMetadata(ctx context.Context, relayUrls []string, relayConnection *relay.RelayConnection, userHexKey string, metadataFinished chan<- string) {
+func userMetadata(relayUrls []string, relayConnection *relay.RelayConnection, userHexKey string, metadataFinished chan<- string) {
 	for _, relayUrl := range relayUrls {
 		go func(url string) {
-			relayConnection.GetUserMetadata(ctx, url, userHexKey, metadataFinished)
+			relayConnection.GetUserMetadata(url, userHexKey, metadataFinished)
 		}(relayUrl)
 	}
 }
 
-func followList(ctx context.Context, relayUrls []string, relayConnection *relay.RelayConnection, userHexKey string, followsFinished chan<- string) {
+func followList(relayUrls []string, relayConnection *relay.RelayConnection, userHexKey string, followsFinished chan<- string) {
 	for _, relayUrl := range relayUrls {
 		go func(relayUrl string) {
-			relayConnection.GetFollowList(ctx, relayUrl, userHexKey, followsFinished)
+			relayConnection.GetFollowList(relayUrl, userHexKey, followsFinished)
 		}(relayUrl)
 	}
 }
@@ -208,17 +208,14 @@ func userMetadataQueue(relayUrls []string, relayConnection *relay.RelayConnectio
 		go func(d amqp.Delivery) {
 			userHexKey := string(d.Body)
 			if userHexKey != "" {
-				ctx, cancel := createUserContext(userHexKey)
-				defer cancel()
-
-				userMetadata(ctx, relayUrls, relayConnection, userHexKey, metadataFinished)
+				userMetadata(relayUrls, relayConnection, userHexKey, metadataFinished)
 				<-metadataFinished
 
-				userNotes(ctx, relayUrls, relayConnection, userHexKey, notesFinished)
+				userNotes(relayUrls, relayConnection, userHexKey, notesFinished)
 				<-notesFinished
 				fmt.Println("past notes finsished channel")
 
-				followList(ctx, relayUrls, relayConnection, userHexKey, followsFinished)
+				followList(relayUrls, relayConnection, userHexKey, followsFinished)
 				<-followsFinished
 			}
 		}(d)

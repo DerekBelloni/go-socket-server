@@ -1,7 +1,6 @@
 package relay
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/DerekBelloni/go-socket-server/internal/data"
@@ -20,45 +19,45 @@ func (rc *RelayConnection) GetConnection(relayUrl string) (chan []byte, chan str
 	return rc.relayManager.GetConnection(relayUrl)
 }
 
-func (rc *RelayConnection) GetUserMetadata(ctx context.Context, relayUrl string, userHexKey string, metadataFinished chan<- string) {
+func (rc *RelayConnection) GetUserMetadata(relayUrl string, userHexKey string, metadataFinished chan<- string) {
 	writeChan, eventChan, err := rc.GetConnection(relayUrl)
 
 	if err != nil {
 		fmt.Printf("Dial error: %v\n", err)
 	}
 
-	subscriptions.MetadataSubscription(ctx, relayUrl, userHexKey, writeChan, eventChan, metadataFinished)
+	subscriptions.MetadataSubscription(relayUrl, userHexKey, writeChan, eventChan, metadataFinished)
 }
 
-func (rc *RelayConnection) GetUserNotes(ctx context.Context, relayUrl string, userHexKey string, notesFinished chan<- string) {
+func (rc *RelayConnection) GetUserNotes(relayUrl string, userHexKey string, notesFinished chan<- string) {
 	writeChan, eventChan, err := rc.GetConnection(relayUrl)
 	fmt.Println("user notes in connection.go")
 	if err != nil {
 		fmt.Printf("Dial error: %v\n", err)
 	}
 
-	subscriptions.UserNotesSubscription(ctx, relayUrl, userHexKey, writeChan, eventChan, notesFinished)
+	subscriptions.UserNotesSubscription(relayUrl, userHexKey, writeChan, eventChan, notesFinished)
 }
 
-func (rc *RelayConnection) GetFollowList(ctx context.Context, relayUrl string, userHexKey string, followsFinished chan<- string) {
+func (rc *RelayConnection) GetFollowList(relayUrl string, userHexKey string, followsFinished chan<- string) {
 	writeChan, eventChan, err := rc.GetConnection(relayUrl)
 
 	if err != nil {
 		fmt.Printf("Dial error: %v\n", err)
 	}
 
-	subscriptions.FollowListSubscription(ctx, relayUrl, userHexKey, writeChan, eventChan, followsFinished)
+	subscriptions.FollowListSubscription(relayUrl, userHexKey, writeChan, eventChan, followsFinished)
 }
 
 // add the user key context here
-func (rc *RelayConnection) GetFollowListMetadata(ctx context.Context, relayUrl string, pubKeys []string) {
+func (rc *RelayConnection) GetFollowListMetadata(relayUrl string, pubKeys []string) {
 	writeChan, eventChan, err := rc.GetConnection(relayUrl)
 
 	if err != nil {
 		fmt.Printf("Diale error: %v\n", err)
 	}
 
-	subscriptions.FollowListMetadataSubscription(ctx, relayUrl, pubKeys, writeChan, eventChan)
+	subscriptions.FollowListMetadataSubscription(relayUrl, pubKeys, writeChan, eventChan)
 }
 
 // func SendNoteToRelay(relayUrl string, newNote data.NewNote, noteFinished chan<- string) {
