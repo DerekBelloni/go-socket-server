@@ -51,6 +51,7 @@ func ConsumeQueue(queueName string) (<-chan amqp.Delivery, *amqp.Connection) {
 }
 
 func setQueue(queueName string, eventJson []byte, eventChan chan<- string) {
+	fmt.Printf("queue name: %v\n", queueName)
 	conn, err := amqp.Dial("amqp://guest:guest@localhost:5672/")
 	if err != nil {
 		fmt.Printf("Failed to connect to RabbitMQ: %v\n", err)
