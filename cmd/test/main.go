@@ -225,6 +225,10 @@ func userMetadataQueue(relayUrls []string, relayConnection *relay.RelayConnectio
 	<-forever
 }
 
+func userFollowsMetadataQueue(relayUrls []string) {
+	fmt.Printf("relay urls in follows metadata queue: %v\n", relayUrls)
+}
+
 func main() {
 	relayManager := data.NewRelayManager(nil)
 	relayConnection := relay.NewRelayConnection(relayManager)
@@ -241,6 +245,8 @@ func main() {
 	var forever chan struct{}
 
 	go userMetadataQueue(relayUrls, relayConnection)
+
+	go userFollowsMetadataQueue(relayUrls)
 
 	// Queue: Posting a Note
 	// go createNote(relayUrls)
