@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/DerekBelloni/go-socket-server/internal/data"
+	"github.com/DerekBelloni/go-socket-server/internal/handler"
 	"github.com/DerekBelloni/go-socket-server/internal/relay"
 	amqp "github.com/rabbitmq/amqp091-go"
 )
@@ -227,6 +228,11 @@ func userMetadataQueue(relayUrls []string, relayConnection *relay.RelayConnectio
 
 func userFollowsMetadataQueue(relayUrls []string) {
 	fmt.Printf("relay urls in follows metadata queue: %v\n", relayUrls)
+	conn, err := handler.ConsumeQueue("wss://relay.nostr.band")
+	if err != nil {
+		fmt.Printf("Error consuming queue for follows metadata: %v\n", err)
+	}
+	fmt.Printf("queue connection: %v\n", conn)
 }
 
 func main() {
