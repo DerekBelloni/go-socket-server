@@ -53,18 +53,11 @@ func HandleEvent(eventData []interface{}, eventChan chan string, connector core.
 
 	switch kind {
 	case 0:
-		fmt.Printf("case 0 event data, pubkey: %v\n", eventData)
 		metadataQueue(eventData, eventChan)
 	case 1:
 		notesQueue(eventData, eventChan)
 	case 3:
-		// pull the ids out of the follows, go get metadata for each one
-		// followsPubKeys := PrepareFollowsPubKeys(content, eventChan)
-		// HandleFollowListPubKeys(pubKeys)
-		fmt.Printf("case 3 event data: %v\n", eventData)
 		followListQueue(eventData, eventChan)
-
-		// connector.GetFollowListMetadata(relayUrl, followsPubKeys)
 	}
 }
 

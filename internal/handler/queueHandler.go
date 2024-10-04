@@ -8,7 +8,7 @@ import (
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
-func ConsumeQueue(queueName string) (<-chan amqp.Delivery, *amqp.Connection) {
+func ConsumeQueue(queueName string) ([]byte, error) {
 	conn, err := amqp.Dial("amqp://guest:guest@localhost:5672/")
 	if err != nil {
 		fmt.Println("Failed to connect to RabbitMQ", err)
@@ -23,14 +23,14 @@ func ConsumeQueue(queueName string) (<-chan amqp.Delivery, *amqp.Connection) {
 	defer channel.Close()
 
 	queue, err := channel.QueueDeclare(
-		"user_pub_key",
+		queueName,
 		false,
 		false,
 		false,
 		false,
 		nil,
 	)
-
+	fmt.Printf("queue name: %v\n", queue.Name)
 	if err != nil {
 		fmt.Println("Failed to declare a queue", err)
 	}
@@ -44,14 +44,17 @@ func ConsumeQueue(queueName string) (<-chan amqp.Delivery, *amqp.Connection) {
 		false,
 		nil,
 	)
-	if err != nil {
-		fmt.Println("Failed to register a consumer")
+
+	var msgBody []byte
+	for d := range msgs {
+		fmt.Printf("d body: %v\n", d.Body)
+		msgBody = d.Body
 	}
-	return msgs, conn
+
+	return msgBody, nil
 }
 
 func setQueue(queueName string, eventJson []byte, eventChan chan<- string) {
-	fmt.Printf("queue name: %v\n", queueName)
 	conn, err := amqp.Dial("amqp://guest:guest@localhost:5672/")
 	if err != nil {
 		fmt.Printf("Failed to connect to RabbitMQ: %v\n", err)

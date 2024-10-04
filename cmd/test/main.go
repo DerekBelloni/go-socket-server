@@ -227,12 +227,17 @@ func userMetadataQueue(relayUrls []string, relayConnection *relay.RelayConnectio
 }
 
 func userFollowsMetadataQueue(relayUrls []string) {
-	fmt.Printf("relay urls in follows metadata queue: %v\n", relayUrls)
-	conn, err := handler.ConsumeQueue("wss://relay.nostr.band")
-	if err != nil {
-		fmt.Printf("Error consuming queue for follows metadata: %v\n", err)
-	}
-	fmt.Printf("queue connection: %v\n", conn)
+	forever := make(chan struct{})
+	queueName := "follow_list"
+	go func() {
+		msg, err := handler.ConsumeQueue(queueName)
+		fmt.Println("BANANANANANANANxs")
+		if err != nil {
+			fmt.Printf("Error consuming queue for follows metadata: %v\n", err)
+		}
+		fmt.Printf("queue connection: %v\n", msg)
+	}()
+	<-forever
 }
 
 func main() {

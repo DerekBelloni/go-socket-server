@@ -31,7 +31,6 @@ func (rc *RelayConnection) GetUserMetadata(relayUrl string, userHexKey string, m
 
 func (rc *RelayConnection) GetUserNotes(relayUrl string, userHexKey string, notesFinished chan<- string) {
 	writeChan, eventChan, err := rc.GetConnection(relayUrl)
-	fmt.Println("user notes in connection.go")
 	if err != nil {
 		fmt.Printf("Dial error: %v\n", err)
 	}
