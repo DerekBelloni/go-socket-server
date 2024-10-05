@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
 	"log"
 	"time"
@@ -98,12 +100,14 @@ func createUserContext(userHexKey string) (context.Context, context.CancelFunc) 
 func userNotes(relayUrls []string, relayConnection *relay.RelayConnection, userHexKey string, notesFinished chan<- string) {
 	for _, relayUrl := range relayUrls {
 		go func(relayUrl string) {
+			fmt.Println("in user notes")
 			relayConnection.GetUserNotes(relayUrl, userHexKey, notesFinished)
 		}(relayUrl)
 	}
 }
 
 func userMetadata(relayUrls []string, relayConnection *relay.RelayConnection, userHexKey string, metadataFinished chan<- string) {
+	fmt.Println("in user metadata")
 	for _, relayUrl := range relayUrls {
 		go func(url string) {
 			relayConnection.GetUserMetadata(url, userHexKey, metadataFinished)
@@ -117,6 +121,15 @@ func followList(relayUrls []string, relayConnection *relay.RelayConnection, user
 			relayConnection.GetFollowList(relayUrl, userHexKey, followsFinished)
 		}(relayUrl)
 	}
+}
+
+func generateRandomString(length int) (string, error) {
+	bytes := make([]byte, length)
+	_, err := rand.Read(bytes)
+	if err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(bytes), nil
 }
 
 func metadataSetQueue(conn *amqp.Connection, userHexKey string) {
@@ -162,9 +175,9 @@ func metadataSetQueue(conn *amqp.Connection, userHexKey string) {
 
 func userMetadataQueue(relayUrls []string, relayConnection *relay.RelayConnection) {
 	forever := make(chan struct{})
-	metadataFinished := make(chan string)
-	notesFinished := make(chan string)
-	followsFinished := make(chan string)
+	// metadataFinished := make(chan string)
+	// notesFinished := make(chan string)
+	// followsFinished := make(chan string)
 
 	conn, err := amqp.Dial("amqp://guest:guest@localhost:5672/")
 	if err != nil {
@@ -176,7 +189,6 @@ func userMetadataQueue(relayUrls []string, relayConnection *relay.RelayConnectio
 	if err != nil {
 		fmt.Println("Failed to open a channel")
 	}
-
 	defer channel.Close()
 
 	queue, err := channel.QueueDeclare(
@@ -191,47 +203,134 @@ func userMetadataQueue(relayUrls []string, relayConnection *relay.RelayConnectio
 	if err != nil {
 		fmt.Println("Failed to declare a queue", err)
 	}
-
-	msgs, err := channel.Consume(
-		queue.Name,
-		"",
-		true,
-		false,
-		false,
-		false,
-		nil,
-	)
-	if err != nil {
-		fmt.Println("Failed to register a consumer")
-	}
-
-	for d := range msgs {
-		go func(d amqp.Delivery) {
-			userHexKey := string(d.Body)
-			if userHexKey != "" {
-				userMetadata(relayUrls, relayConnection, userHexKey, metadataFinished)
-				<-metadataFinished
-
-				userNotes(relayUrls, relayConnection, userHexKey, notesFinished)
-				<-notesFinished
-				fmt.Println("past notes finsished channel")
-
-				followList(relayUrls, relayConnection, userHexKey, followsFinished)
-				<-followsFinished
+	// processedEvents := make(map[string]bool)
+	// Goroutine to process incoming messages
+	var pubkeyUUID map[string]string
+	go func() {
+		for {
+			msgs, err := channel.Consume(
+				queue.Name,
+				"",
+				true,
+				false,
+				false,
+				false,
+				nil,
+			)
+			if err != nil {
+				fmt.Println("Failed to register a consumer")
+				return
 			}
-		}(d)
-	}
+
+			for d := range msgs {
+				userHexKeyUUID := string(d.Body)
+				if userHexKeyUUID != "" {
+					fmt.Printf("string body: %v\n", string(d.Body))
+					// userMetadata(relayUrls, relayConnection, userHexKey, metadataFinished)
+					// <-metadataFinished
+					// fmt.Println("past user metadata channel")
+
+					// followList(relayUrls, relayConnection, userHexKey, followsFinished)
+					// <-followsFinished
+					// fmt.Println("Completed follow list processing")
+
+					// // d.Ack(false)
+
+					// _, err = channel.QueuePurge(queue.Name, false)
+					// if err != nil {
+					// 	log.Printf("Failed to purge queue: %v", err)
+					// } else {
+					// 	log.Printf("Purged queue: %v\n", queue.Name)
+					// }
+				}
+			}
+		}
+	}()
 
 	log.Printf("[*] Waiting for messages. To exit press CTRL+C")
 	<-forever
 }
+
+// func userMetadataQueue(relayUrls []string, relayConnection *relay.RelayConnection) {
+// 	forever := make(chan struct{})
+// 	metadataFinished := make(chan string)
+// 	// notesFinished := make(chan string)
+// 	followsFinished := make(chan string)
+
+// 	conn, err := amqp.Dial("amqp://guest:guest@localhost:5672/")
+// 	if err != nil {
+// 		fmt.Println("Failed to connect to RabbitMQ", err)
+// 	}
+// 	defer conn.Close()
+
+// 	channel, err := conn.Channel()
+// 	if err != nil {
+// 		fmt.Println("Failed to open a channel")
+// 	}
+
+// 	defer channel.Close()
+
+// 	queue, err := channel.QueueDeclare(
+// 		"user_pub_key",
+// 		false,
+// 		false,
+// 		false,
+// 		false,
+// 		nil,
+// 	)
+
+// 	if err != nil {
+// 		fmt.Println("Failed to declare a queue", err)
+// 	}
+
+// 	msgs, err := channel.Consume(
+// 		queue.Name,
+// 		"",
+// 		true,
+// 		false,
+// 		false,
+// 		false,
+// 		nil,
+// 	)
+// 	if err != nil {
+// 		fmt.Println("Failed to register a consumer")
+// 	}
+
+// 	go func() {
+// 		for d := range msgs {
+// 			userHexKey := string(d.Body)
+// 			if userHexKey != "" {
+// 				fmt.Printf("user hex key: %v\n", userHexKey)
+// 				userMetadata(relayUrls, relayConnection, userHexKey, metadataFinished)
+// 				<-metadataFinished
+// 				fmt.Println("past user metadata channel")
+
+// 				// userNotes(relayUrls, relayConnection, userHexKey, notesFinished)
+// 				// <-notesFinished
+
+// 				followList(relayUrls, relayConnection, userHexKey, followsFinished)
+// 				<-followsFinished
+// 				fmt.Println("Completed follow list processing")
+// 				_, err = channel.QueuePurge(queue.Name, false)
+// 				if err != nil {
+// 					log.Printf("Failed to purge queue: %v", err)
+// 				} else {
+// 					log.Printf("Purged queue: %v\n", queue.Name)
+// 					return
+// 				}
+// 			}
+// 		}
+// 	}()
+
+// 	log.Printf("[*] Waiting for messages. To exit press CTRL+C")
+// 	<-forever
+// }
 
 func userFollowsMetadataQueue(relayUrls []string) {
 	forever := make(chan struct{})
 	queueName := "follow_list"
 	go func() {
 		msg, err := handler.ConsumeQueue(queueName)
-		fmt.Println("BANANANANANANANxs")
 		if err != nil {
 			fmt.Printf("Error consuming queue for follows metadata: %v\n", err)
 		}
@@ -257,7 +356,7 @@ func main() {
 
 	go userMetadataQueue(relayUrls, relayConnection)
 
-	go userFollowsMetadataQueue(relayUrls)
+	// go userFollowsMetadataQueue(relayUrls)
 
 	// Queue: Posting a Note
 	// go createNote(relayUrls)

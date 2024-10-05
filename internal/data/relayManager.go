@@ -87,7 +87,7 @@ func (rm *RelayManager) createNewConnection(relayUrl string) (chan []byte, chan 
 	go rm.writeLoop(conn, relayUrl, writeChan)
 	go rm.readLoop(conn, relayUrl, readChan)
 	go rm.processReadChannel(readChan, relayUrl, eventChan)
-	go rm.connectionHeartbeat(relayUrl)
+	// go rm.connectionHeartbeat(relayUrl)
 	return writeChan, eventChan, nil
 }
 
@@ -122,7 +122,37 @@ func (rm *RelayManager) createConnection(relayUrl string) (*websocket.Conn, erro
 	return conn, nil
 }
 
+func (rm *RelayManager) pongHandler(relayUrl string) error {
+	rm.mutex.Lock()
+	defer rm.mutex.Unlock()
+
+	err := rm.connections[relayUrl].SetReadDeadline(time.Now().Add(pongWait))
+	if err != nil {
+		fmt.Printf("error setting read dead line for relay connection: %v\n", err)
+	}
+
+	rm.connections[relayUrl].SetPongHandler(func(string) error {
+		log.Println("pong")
+		return rm.connections[relayUrl].SetReadDeadline(time.Now().Add(pongWait))
+	})
+
+	return nil
+}
+
 func (rm *RelayManager) readLoop(conn *websocket.Conn, relayUrl string, readChan chan []byte) {
+	// go rm.pongHandler(relayUrl)
+	defer conn.Close()
+
+	// err := rm.connections[relayUrl].SetReadDeadline(time.Now().Add(pongWait))
+	// if err != nil {
+	// 	fmt.Printf("error setting read dead line for relay connection: %v\n", err)
+	// }
+
+	// rm.connections[relayUrl].SetPongHandler(func(string) error {
+	// 	log.Println("pong")
+	// 	return rm.connections[relayUrl].SetReadDeadline(time.Now().Add(pongWait))
+	// })
+
 	for {
 		messageType, reader, err := conn.NextReader()
 		if err != nil {
