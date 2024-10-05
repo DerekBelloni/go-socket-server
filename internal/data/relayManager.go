@@ -15,25 +15,27 @@ import (
 	"github.com/gorilla/websocket"
 )
 
+var (
+	pongWait     = 10 * time.Second
+	pingInterval = (pongWait * 9) / 10
+)
+
 type RelayManager struct {
-	connections    map[string]*websocket.Conn
-	mutex          sync.RWMutex
-	eventChans     map[string]chan string
-	readChans      map[string]chan []byte
-	writeChans     map[string]chan []byte
-	noRelaysActive chan string
-	activeRelays   []string
-	Connector      core.RelayConnector
+	connections map[string]*websocket.Conn
+	mutex       sync.RWMutex
+	eventChans  map[string]chan string
+	readChans   map[string]chan []byte
+	writeChans  map[string]chan []byte
+	Connector   core.RelayConnector
 }
 
 func NewRelayManager(connector core.RelayConnector) *RelayManager {
 	return &RelayManager{
-		connections:  make(map[string]*websocket.Conn),
-		eventChans:   make(map[string]chan string),
-		readChans:    make(map[string]chan []byte),
-		writeChans:   make(map[string]chan []byte),
-		activeRelays: make([]string, 10),
-		Connector:    connector,
+		connections: make(map[string]*websocket.Conn),
+		eventChans:  make(map[string]chan string),
+		readChans:   make(map[string]chan []byte),
+		writeChans:  make(map[string]chan []byte),
+		Connector:   connector,
 	}
 }
 
@@ -44,7 +46,6 @@ func (rm *RelayManager) GetConnection(relayUrl string) (chan []byte, chan string
 	conn, writeChan, readChan, eventChan, err := rm.getExistingConnection(relayUrl)
 
 	if err == nil && rm.isConnected(relayUrl) {
-		rm.activeRelays = append(rm.activeRelays, relayUrl)
 		go rm.writeLoop(conn, relayUrl, writeChan)
 		go rm.readLoop(conn, relayUrl, readChan)
 		go rm.processReadChannel(readChan, relayUrl, eventChan)
@@ -82,12 +83,26 @@ func (rm *RelayManager) createNewConnection(relayUrl string) (chan []byte, chan 
 	rm.readChans[relayUrl] = readChan
 	rm.writeChans[relayUrl] = writeChan
 	rm.connections[relayUrl] = conn
-	rm.activeRelays = append(rm.activeRelays, relayUrl)
 
 	go rm.writeLoop(conn, relayUrl, writeChan)
 	go rm.readLoop(conn, relayUrl, readChan)
 	go rm.processReadChannel(readChan, relayUrl, eventChan)
+	go rm.connectionHeartbeat(relayUrl)
 	return writeChan, eventChan, nil
+}
+
+func (rm *RelayManager) connectionHeartbeat(relayUrl string) {
+	ticker := time.NewTicker(pingInterval)
+	if conn, exists := rm.connections[relayUrl]; exists {
+		<-ticker.C
+		log.Println("ping")
+		rm.mutex.Lock()
+		if err := conn.WriteMessage(websocket.PingMessage, []byte("")); err != nil {
+			log.Println("Ping message error: ", err)
+		}
+		rm.mutex.Unlock()
+	}
+
 }
 
 func (rm *RelayManager) createConnection(relayUrl string) (*websocket.Conn, error) {
@@ -107,21 +122,12 @@ func (rm *RelayManager) createConnection(relayUrl string) (*websocket.Conn, erro
 	return conn, nil
 }
 
-func (rm *RelayManager) monitorConnection(relayUrl string) {
-
-}
-
 func (rm *RelayManager) readLoop(conn *websocket.Conn, relayUrl string, readChan chan []byte) {
-	defer func() {
-		rm.connections[relayUrl].Close()
-	}()
-
 	for {
 		messageType, reader, err := conn.NextReader()
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
 				log.Printf("Error getting next reader from relay: %v, error: %v\n", relayUrl, err)
-				// close connection
 				rm.CloseConnection(relayUrl)
 			}
 			break
