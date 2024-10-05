@@ -121,6 +121,8 @@ func (rm *RelayManager) readLoop(conn *websocket.Conn, relayUrl string, readChan
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
 				log.Printf("Error getting next reader from relay: %v, error: %v\n", relayUrl, err)
+				// close connection
+				rm.CloseConnection(relayUrl)
 			}
 			break
 		}
@@ -197,8 +199,14 @@ func (rm *RelayManager) writeLoop(conn *websocket.Conn, relayUrl string, writeCh
 	}
 }
 
-func (rm *RelayManager) CloseAllConnections() {
+func (rm *RelayManager) CloseConnection(relayUrl string) {
+	rm.mutex.Lock()
+	defer rm.mutex.Unlock()
 
+	if relayConn, exists := rm.connections[relayUrl]; exists {
+		relayConn.Close()
+		delete(rm.connections, relayUrl)
+	}
 }
 
 func (rm *RelayManager) isConnected(relayUrl string) bool {

@@ -58,6 +58,7 @@ func HandleEvent(eventData []interface{}, eventChan chan string, connector core.
 		notesQueue(eventData, eventChan)
 	case 3:
 		followListQueue(eventData, eventChan)
+
 	}
 }
 
