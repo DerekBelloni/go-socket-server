@@ -6,12 +6,19 @@ import (
 	"encoding/hex"
 	"fmt"
 	"log"
+	"strings"
+	"sync"
 	"time"
 
 	"github.com/DerekBelloni/go-socket-server/internal/data"
 	"github.com/DerekBelloni/go-socket-server/internal/handler"
 	"github.com/DerekBelloni/go-socket-server/internal/relay"
 	amqp "github.com/rabbitmq/amqp091-go"
+)
+
+var (
+	pubKeyUUID     = make(map[string]string)
+	pubKeyUUIDLock sync.RWMutex
 )
 
 // func createNote(relayUrls []string) {
@@ -175,9 +182,9 @@ func metadataSetQueue(conn *amqp.Connection, userHexKey string) {
 
 func userMetadataQueue(relayUrls []string, relayConnection *relay.RelayConnection) {
 	forever := make(chan struct{})
-	// metadataFinished := make(chan string)
-	// notesFinished := make(chan string)
-	// followsFinished := make(chan string)
+	metadataFinished := make(chan string)
+	notesFinished := make(chan string)
+	followsFinished := make(chan string)
 
 	conn, err := amqp.Dial("amqp://guest:guest@localhost:5672/")
 	if err != nil {
@@ -203,9 +210,7 @@ func userMetadataQueue(relayUrls []string, relayConnection *relay.RelayConnectio
 	if err != nil {
 		fmt.Println("Failed to declare a queue", err)
 	}
-	// processedEvents := make(map[string]bool)
-	// Goroutine to process incoming messages
-	var pubkeyUUID map[string]string
+
 	go func() {
 		for {
 			msgs, err := channel.Consume(
@@ -217,6 +222,7 @@ func userMetadataQueue(relayUrls []string, relayConnection *relay.RelayConnectio
 				false,
 				nil,
 			)
+
 			if err != nil {
 				fmt.Println("Failed to register a consumer")
 				return
@@ -224,25 +230,37 @@ func userMetadataQueue(relayUrls []string, relayConnection *relay.RelayConnectio
 
 			for d := range msgs {
 				userHexKeyUUID := string(d.Body)
-				if userHexKeyUUID != "" {
-					fmt.Printf("string body: %v\n", string(d.Body))
-					// userMetadata(relayUrls, relayConnection, userHexKey, metadataFinished)
-					// <-metadataFinished
-					// fmt.Println("past user metadata channel")
-
-					// followList(relayUrls, relayConnection, userHexKey, followsFinished)
-					// <-followsFinished
-					// fmt.Println("Completed follow list processing")
-
-					// // d.Ack(false)
-
-					// _, err = channel.QueuePurge(queue.Name, false)
-					// if err != nil {
-					// 	log.Printf("Failed to purge queue: %v", err)
-					// } else {
-					// 	log.Printf("Purged queue: %v\n", queue.Name)
-					// }
+				parts := strings.Split(userHexKeyUUID, ":")
+				if len(parts) != 2 {
+					fmt.Println("here")
+					continue
 				}
+
+				userHexKey := parts[0]
+				uuid := parts[1]
+
+				pubKeyUUIDLock.Lock()
+				existingUUID, exists := pubKeyUUID[userHexKey]
+				if exists && existingUUID == uuid {
+					pubKeyUUIDLock.Unlock()
+					fmt.Printf("Mapping already exists for Pubkey: %s. Skipping processing\n", userHexKey)
+					continue
+				}
+
+				pubKeyUUID[userHexKey] = uuid
+				pubKeyUUIDLock.Unlock()
+
+				userMetadata(relayUrls, relayConnection, userHexKey, metadataFinished)
+				<-metadataFinished
+				fmt.Println("past user metadata channel")
+
+				userNotes(relayUrls, relayConnection, userHexKey, notesFinished)
+				<-notesFinished
+				fmt.Println("Completed user notes processing")
+
+				followList(relayUrls, relayConnection, userHexKey, followsFinished)
+				<-followsFinished
+				fmt.Println("Completed follow list processing")
 			}
 		}
 	}()
