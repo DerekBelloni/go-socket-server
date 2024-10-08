@@ -21,6 +21,7 @@ func generateRandomString(length int) (string, error) {
 	}
 	return hex.EncodeToString(bytes), nil
 }
+
 func MetadataSubscription(relayUrl string, userHexKey string, writeChan chan<- []byte, eventChan <-chan string, metadataSet chan<- string) {
 	subscriptionID, err := generateRandomString(16)
 	if err != nil {
