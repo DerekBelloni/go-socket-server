@@ -239,7 +239,6 @@ func userMetadataQueue(relayUrls []string, relayConnection *relay.RelayConnectio
 				userHexKeyUUID := string(d.Body)
 				parts := strings.Split(userHexKeyUUID, ":")
 				if len(parts) != 2 {
-					fmt.Println("here")
 					continue
 				}
 
@@ -323,7 +322,6 @@ func userFollowsMetadataQueue(relayUrls []string, relayConnection *relay.RelayCo
 			}
 
 			for d := range msgs {
-				fmt.Printf("follow metadata message: %v\n", string(d.Body))
 				userHexKeyUUID := string(d.Body)
 				parts := strings.Split(userHexKeyUUID, ":")
 				if len(parts) != 2 {
@@ -349,6 +347,7 @@ func userFollowsMetadataQueue(relayUrls []string, relayConnection *relay.RelayCo
 			}
 		}
 	}()
+	log.Printf("[*] Waiting for follows list messages. To exit press CTRL+C")
 	<-forever
 }
 

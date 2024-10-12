@@ -74,7 +74,7 @@ func HandleFollowListPubKeys(userHexKey string) {
 			fmt.Printf("Couldn't retrieve follows list from Redis: %v\n", err)
 		}
 
-		fmt.Printf("Follows list for pubkey: %v\n%v\n", userHexKey, res)
+		fmt.Printf("Follows list for pubkey: %v\n\n%v\n\n", userHexKey, res)
 	}
 
 }
