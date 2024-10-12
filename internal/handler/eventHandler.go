@@ -53,10 +53,8 @@ func HandleEvent(eventData []interface{}, eventChan chan string, connector core.
 
 	switch kind {
 	case 0:
-		fmt.Println("metadata in event handler")
 		metadataQueue(eventData, eventChan)
 	case 1:
-		fmt.Println("notes in event handler")
 		notesQueue(eventData, eventChan)
 	case 3:
 		followListQueue(eventData, eventChan)

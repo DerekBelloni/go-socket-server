@@ -47,7 +47,6 @@ func ConsumeQueue(queueName string) ([]byte, error) {
 
 	var msgBody []byte
 	for d := range msgs {
-		fmt.Printf("d body: %v\n", d.Body)
 		msgBody = d.Body
 	}
 

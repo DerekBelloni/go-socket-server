@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/DerekBelloni/go-socket-server/internal/data"
+	"github.com/DerekBelloni/go-socket-server/internal/handler"
 	"github.com/DerekBelloni/go-socket-server/internal/subscriptions"
 )
 
@@ -49,14 +50,16 @@ func (rc *RelayConnection) GetFollowList(relayUrl string, userHexKey string, fol
 }
 
 // add the user key context here
-func (rc *RelayConnection) GetFollowListMetadata(relayUrl string, pubKeys []string) {
-	writeChan, eventChan, err := rc.GetConnection(relayUrl)
+func (rc *RelayConnection) GetFollowListMetadata(relayUrl string, userHexKey string) {
+	handler.HandleFollowListPubKeys(userHexKey)
 
-	if err != nil {
-		fmt.Printf("Diale error: %v\n", err)
-	}
+	// writeChan, eventChan, err := rc.GetConnection(relayUrl)
 
-	subscriptions.FollowListMetadataSubscription(relayUrl, pubKeys, writeChan, eventChan)
+	// if err != nil {
+	// 	fmt.Printf("Diale error: %v\n", err)
+	// }
+
+	// subscriptions.FollowListMetadataSubscription(relayUrl, pubKeys, writeChan, eventChan)
 }
 
 // func SendNoteToRelay(relayUrl string, newNote data.NewNote, noteFinished chan<- string) {

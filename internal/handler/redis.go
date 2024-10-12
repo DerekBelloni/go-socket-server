@@ -58,6 +58,23 @@ func HandleMetaData(userMetadataJSON []byte, finished chan<- string, relayUrl st
 	finished <- relayUrl
 }
 
-func HandleFollowListPubKeys() {
+func HandleFollowListPubKeys(userHexKey string) {
+	client := redis.NewClient(&redis.Options{
+		Addr:     "localhost:6379",
+		Password: "",
+		DB:       0,
+	})
+
+	ctx := context.Background()
+	redisKey := userHexKey + ":" + "follows"
+	if userHexKey != "" {
+		res, err := client.Get(ctx, redisKey).Result()
+
+		if err != nil {
+			fmt.Printf("Couldn't retrieve follows list from Redis: %v\n", err)
+		}
+
+		fmt.Printf("Follows list for pubkey: %v\n%v\n", userHexKey, res)
+	}
 
 }
