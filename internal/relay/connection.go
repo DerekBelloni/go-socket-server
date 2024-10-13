@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/DerekBelloni/go-socket-server/internal/data"
-	"github.com/DerekBelloni/go-socket-server/internal/handler"
 	"github.com/DerekBelloni/go-socket-server/internal/subscriptions"
 )
 
@@ -51,7 +50,6 @@ func (rc *RelayConnection) GetFollowList(relayUrl string, userHexKey string, fol
 
 // add the user key context here
 func (rc *RelayConnection) GetFollowListMetadata(relayUrl string, userHexKey string) {
-	handler.HandleFollowListPubKeys(userHexKey)
 
 	// writeChan, eventChan, err := rc.GetConnection(relayUrl)
 

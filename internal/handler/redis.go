@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 
 	"github.com/gorilla/websocket"
@@ -75,6 +76,36 @@ func HandleFollowListPubKeys(userHexKey string) {
 		}
 
 		fmt.Printf("Follows list for pubkey: %v\n\n%v\n\n", userHexKey, res)
-	}
 
+		var followsEvent []interface{}
+		err = json.Unmarshal([]byte(res), &followsEvent)
+		if err != nil {
+			fmt.Printf("Error unmarshalling follows event JSON from Redis")
+		}
+
+		if len(followsEvent) < 3 {
+			fmt.Printf("Event not long enough")
+		}
+
+		content, ok := followsEvent[2].(map[string]interface{})
+		if !ok {
+			fmt.Printf("Could not extract content from event data")
+		}
+
+		tags, ok := content["tags"].([]interface{})
+		if !ok {
+			fmt.Printf("Could not extract tags from content")
+		}
+
+		fmt.Printf("tags: %v\n", tags)
+
+		// content, ok := eventData[2].(map[string]interface{})
+		// if !ok {
+		// 	fmt.Printf("Could not extract content from event data")
+		// }
+		// if !ok {
+		// 	fmt.Println("No content in metadata follows event in Redis")
+		// }
+		// fmt.Printf("unmarshalled follows content: %v\n")
+	}
 }

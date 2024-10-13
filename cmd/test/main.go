@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/DerekBelloni/go-socket-server/internal/data"
+	"github.com/DerekBelloni/go-socket-server/internal/handler"
 	"github.com/DerekBelloni/go-socket-server/internal/relay"
 	amqp "github.com/rabbitmq/amqp091-go"
 )
@@ -130,11 +131,12 @@ func followList(relayUrls []string, relayConnection *relay.RelayConnection, user
 }
 
 func followsMetadata(relyaUrls []string, relayConnection *relay.RelayConnection, userHexKey string) {
-	for _, relayUrl := range relyaUrls {
-		go func(relayUrl string) {
-			relayConnection.GetFollowListMetadata(relayUrl, userHexKey)
-		}(relayUrl)
-	}
+	handler.HandleFollowListPubKeys(userHexKey)
+	// for _, relayUrl := range relyaUrls {
+	// 	go func(relayUrl string) {
+	// 		relayConnection.GetFollowListMetadata(relayUrl, userHexKey, pubKeys)
+	// 	}(relayUrl)
+	// }
 }
 
 func generateRandomString(length int) (string, error) {
@@ -325,7 +327,6 @@ func userFollowsMetadataQueue(relayUrls []string, relayConnection *relay.RelayCo
 				userHexKeyUUID := string(d.Body)
 				parts := strings.Split(userHexKeyUUID, ":")
 				if len(parts) != 2 {
-					fmt.Println("here")
 					continue
 				}
 
@@ -358,8 +359,8 @@ func main() {
 
 	relayUrls := []string{
 		"wss://relay.damus.io",
-		"wss://nos.lol",
-		"wss://purplerelay.com",
+		// "wss://nos.lol",
+		// "wss://purplerelay.com",
 		"wss://relay.primal.net",
 		"wss://relay.nostr.band",
 	}
