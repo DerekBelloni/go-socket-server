@@ -49,7 +49,6 @@ func (rc *RelayConnection) GetFollowList(relayUrl string, userHexKey string, fol
 
 // add the user key context here
 func (rc *RelayConnection) GetFollowListMetadata(relayUrl string, userHexKey string) {
-
 	// writeChan, eventChan, err := rc.GetConnection(relayUrl)
 
 	// if err != nil {

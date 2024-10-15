@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"github.com/DerekBelloni/go-socket-server/relay"
+	"github.com/DerekBelloni/go-socket-server/store"
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
@@ -44,36 +45,37 @@ func (s *Service) checkAndUpdatePubkeyUUID(userHexKey, uuid string) bool {
 	return true
 }
 
-// func (s *Service) followsMetadata(relyaUrls []string, relayConnection *relay.RelayConnection, userHexKey string) {
-// 	// handler.HandleFollowListPubKeys(userHexKey)
-// 	// for _, relayUrl := range relyaUrls {
-// 	// 	go func(relayUrl string) {
-// 	// 		relayConnection.GetFollowListMetadata(relayUrl, userHexKey, pubKeys)
-// 	// 	}(relayUrl)
-// 	// }
-// }
+func (s *Service) followsMetadata(userHexKey string) {
+	redisClient := store.NewRedisClient()
+	redisClient.HandleFollowListPubKeys(userHexKey)
+	// for _, relayUrl := range relyaUrls {
+	// 	go func(relayUrl string) {
+	// 		s.relayConnection.GetFollowListMetadata(relayUrl, userHexKey, pubKeys)
+	// 	}(relayUrl)
+	// }
+}
 
-func (s *Service) userNotes(relayUrls []string, relayConnection *relay.RelayConnection, userHexKey string, notesFinished chan<- string) {
+func (s *Service) userNotes(relayUrls []string, userHexKey string, notesFinished chan<- string) {
 	for _, relayUrl := range relayUrls {
 		go func(relayUrl string) {
-			relayConnection.GetUserNotes(relayUrl, userHexKey, notesFinished)
+			s.relayConnection.GetUserNotes(relayUrl, userHexKey, notesFinished)
 		}(relayUrl)
 	}
 }
 
-func (s *Service) userMetadata(relayUrls []string, relayConnection *relay.RelayConnection, userHexKey string, metadataFinished chan<- string) {
+func (s *Service) userMetadata(relayUrls []string, userHexKey string, metadataFinished chan<- string) {
 	fmt.Println("in user metadata")
 	for _, relayUrl := range relayUrls {
 		go func(url string) {
-			relayConnection.GetUserMetadata(url, userHexKey, metadataFinished)
+			s.relayConnection.GetUserMetadata(url, userHexKey, metadataFinished)
 		}(relayUrl)
 	}
 }
 
-func (s *Service) followList(relayUrls []string, relayConnection *relay.RelayConnection, userHexKey string, followsFinished chan<- string) {
+func (s *Service) followList(relayUrls []string, userHexKey string, followsFinished chan<- string) {
 	for _, relayUrl := range relayUrls {
 		go func(relayUrl string) {
-			relayConnection.GetFollowList(relayUrl, userHexKey, followsFinished)
+			s.relayConnection.GetFollowList(relayUrl, userHexKey, followsFinished)
 		}(relayUrl)
 	}
 }
@@ -140,15 +142,15 @@ func (s *Service) StartMetadataQueue() {
 					continue
 				}
 
-				s.userMetadata(s.relayUrls, s.relayConnection, userHexKey, metadataFinished)
+				s.userMetadata(s.relayUrls, userHexKey, metadataFinished)
 				<-metadataFinished
 				fmt.Println("past user metadata channel")
 
-				s.userNotes(s.relayUrls, s.relayConnection, userHexKey, notesFinished)
+				s.userNotes(s.relayUrls, userHexKey, notesFinished)
 				<-notesFinished
 				fmt.Println("Completed user notes processing")
 
-				s.followList(s.relayUrls, s.relayConnection, userHexKey, followsFinished)
+				s.followList(s.relayUrls, userHexKey, followsFinished)
 				<-followsFinished
 				fmt.Println("Completed follow list processing")
 			}
@@ -160,78 +162,78 @@ func (s *Service) StartMetadataQueue() {
 }
 
 func (s *Service) StartFollowsMetadataQueue() {
-	// forever := make(chan struct{})
-	// queueName := "follow_list_metadata"
+	forever := make(chan struct{})
+	queueName := "follow_list_metadata"
 
-	// conn, err := amqp.Dial("amqp://guest:guest@localhost:5672/")
-	// if err != nil {
-	// 	fmt.Println("Failed to connect to RabbitMQ", err)
-	// }
-	// defer conn.Close()
+	conn, err := amqp.Dial("amqp://guest:guest@localhost:5672/")
+	if err != nil {
+		fmt.Println("Failed to connect to RabbitMQ", err)
+	}
+	defer conn.Close()
 
-	// channel, err := conn.Channel()
-	// if err != nil {
-	// 	fmt.Println("Failed to open a channel")
-	// }
-	// defer channel.Close()
+	channel, err := conn.Channel()
+	if err != nil {
+		fmt.Println("Failed to open a channel")
+	}
+	defer channel.Close()
 
-	// queue, err := channel.QueueDeclare(
-	// 	queueName,
-	// 	false,
-	// 	false,
-	// 	false,
-	// 	false,
-	// 	nil,
-	// )
+	queue, err := channel.QueueDeclare(
+		queueName,
+		false,
+		false,
+		false,
+		false,
+		nil,
+	)
 
-	// if err != nil {
-	// 	fmt.Println("Failed to declare a queue", err)
-	// }
+	if err != nil {
+		fmt.Println("Failed to declare a queue", err)
+	}
 
-	// go func() {
-	// 	for {
-	// 		msgs, err := channel.Consume(
-	// 			queue.Name,
-	// 			"",
-	// 			true,
-	// 			false,
-	// 			false,
-	// 			false,
-	// 			nil,
-	// 		)
+	go func() {
+		for {
+			msgs, err := channel.Consume(
+				queue.Name,
+				"",
+				true,
+				false,
+				false,
+				false,
+				nil,
+			)
 
-	// 		if err != nil {
-	// 			fmt.Println("Failed to register a consumer")
-	// 			return
-	// 		}
+			if err != nil {
+				fmt.Println("Failed to register a consumer")
+				return
+			}
 
-	// 		for d := range msgs {
-	// 			userHexKeyUUID := string(d.Body)
-	// 			parts := strings.Split(userHexKeyUUID, ":")
-	// 			if len(parts) != 2 {
-	// 				continue
-	// 			}
+			for d := range msgs {
+				userHexKeyUUID := string(d.Body)
+				parts := strings.Split(userHexKeyUUID, ":")
+				if len(parts) != 2 {
+					continue
+				}
 
-	// 			userHexKey := parts[0]
-	// 			uuid := parts[1]
+				userHexKey := parts[0]
+				uuid := parts[1]
 
-	// 			pubKeyUUIDLock.Lock()
-	// 			existingUUID, exists := pubKeyUUID[userHexKey]
-	// 			if exists && existingUUID == uuid {
-	// 				pubKeyUUIDLock.Unlock()
-	// 				fmt.Printf("Mapping already exists for Pubkey: %s. Skipping processing\n", userHexKey)
-	// 				continue
-	// 			}
+				s.pubKeyUUIDLock.Lock()
+				existingUUID, exists := s.pubKeyUUID[userHexKey]
+				if exists && existingUUID == uuid {
+					s.pubKeyUUIDLock.Unlock()
+					fmt.Printf("Mapping already exists for Pubkey: %s. Skipping processing\n", userHexKey)
+					continue
+				}
 
-	// 			pubKeyUUID[userHexKey] = uuid
-	// 			pubKeyUUIDLock.Unlock()
+				s.pubKeyUUID[userHexKey] = uuid
+				s.pubKeyUUIDLock.Unlock()
 
-	// 			followsMetadata(s.relayUrls, s.relayConnection, userHexKey)
-	// 		}
-	// 	}
-	// }()
-	// log.Printf("[*] Waiting for follows list messages. To exit press CTRL+C")
-	// <-forever
+				s.followsMetadata(userHexKey)
+			}
+		}
+	}()
+	log.Printf("[*] Waiting for follows list messages. To exit press CTRL+C")
+	<-forever
 }
 
 // func createNote(relayUrls []string) {

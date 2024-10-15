@@ -19,6 +19,7 @@ func main() {
 	userService := user.NewService(relayConnection, relayUrls)
 
 	go userService.StartMetadataQueue()
+	go userService.StartFollowsMetadataQueue()
 
 	var forever chan struct{}
 	<-forever
