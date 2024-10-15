@@ -64,7 +64,6 @@ func (s *Service) userNotes(relayUrls []string, userHexKey string, notesFinished
 }
 
 func (s *Service) userMetadata(relayUrls []string, userHexKey string, metadataFinished chan<- string) {
-	fmt.Println("in user metadata")
 	for _, relayUrl := range relayUrls {
 		go func(url string) {
 			s.relayConnection.GetUserMetadata(url, userHexKey, metadataFinished)
