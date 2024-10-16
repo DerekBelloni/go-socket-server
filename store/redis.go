@@ -24,18 +24,21 @@ func NewRedisClient() *RedisClient {
 	}
 }
 
-func ExtractPubKeys(tags []interface{}) (string, bool) {
+func ExtractPubKeys(tags []interface{}) ([]string, bool) {
 	var pubKeys []string
 
-	tagSlice, ok := tag.([]interface{})
-	if !ok || len(tagSlice) < 2 {
-		return "", false
+	for _, tag := range tags {
+		tagSlice, ok := tag.([]interface{})
+		if !ok || len(tagSlice) < 2 {
+			return nil, false
+		}
+		pubKey, ok := tagSlice[1].(string)
+		if !ok {
+			return nil, false
+		}
+		pubKeys = append(pubKeys, pubKey)
 	}
-	pubKey, ok := tagSlice[1].(string)
-	if !ok {
-		return "", false
-	}
-	return pubKey, true
+	return pubKeys, true
 }
 
 // func ExtractPubKeys(tag interface{}) (string, bool) {
@@ -82,6 +85,9 @@ func (r *RedisClient) HandleFollowListPubKeys(userHexKey string) []string {
 		}
 
 		pubKeys, ok := ExtractPubKeys(tags)
+		if !ok {
+			fmt.Printf("Could not extract pubkeys from tags")
+		}
 
 		// for _, tag := range tags {
 		// 	pubKey, ok := ExtractPubKeys(tag)
@@ -92,6 +98,7 @@ func (r *RedisClient) HandleFollowListPubKeys(userHexKey string) []string {
 		// }
 
 		fmt.Printf("pubkeys: %v\n", pubKeys)
+		return pubKeys
 	}
-	return pubKeys
+	return nil
 }
