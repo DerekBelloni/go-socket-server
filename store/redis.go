@@ -25,37 +25,34 @@ func NewRedisClient() *RedisClient {
 }
 
 func ExtractPubKeys(tags []interface{}) ([]string, bool) {
-	var pubKeys []string
+	if len(tags) == 0 {
+		return nil, false
+	}
+
+	pubKeys := make([]string, 0, len(tags))
 
 	for _, tag := range tags {
 		tagSlice, ok := tag.([]interface{})
-		if !ok || len(tagSlice) < 2 {
-			return nil, false
+		if !ok || len(tagSlice) < 2 || tagSlice[0] != "p" {
+			continue
 		}
 		pubKey, ok := tagSlice[1].(string)
-		if !ok {
-			return nil, false
+		if !ok || pubKey == "" {
+			continue
 		}
+
 		pubKeys = append(pubKeys, pubKey)
 	}
+
+	if len(pubKeys) == 0 {
+		return nil, false
+	}
+
 	return pubKeys, true
 }
 
-// func ExtractPubKeys(tag interface{}) (string, bool) {
-// 	tagSlice, ok := tag.([]interface{})
-// 	if !ok || len(tagSlice) < 2 {
-// 		return "", false
-// 	}
-// 	pubKey, ok := tagSlice[1].(string)
-// 	if !ok {
-// 		return "", false
-// 	}
-// 	return pubKey, true
-// }
-
 func (r *RedisClient) HandleFollowListPubKeys(userHexKey string) []string {
 	redisKey := userHexKey + ":" + "follows"
-	// var pubKeys []string
 
 	if userHexKey != "" {
 		res, err := r.client.Get(r.ctx, redisKey).Result()
@@ -89,15 +86,6 @@ func (r *RedisClient) HandleFollowListPubKeys(userHexKey string) []string {
 			fmt.Printf("Could not extract pubkeys from tags")
 		}
 
-		// for _, tag := range tags {
-		// 	pubKey, ok := ExtractPubKeys(tag)
-		// 	if !ok {
-		// 		continue
-		// 	}
-		// 	pubKeys = append(pubKeys, pubKey)
-		// }
-
-		fmt.Printf("pubkeys: %v\n", pubKeys)
 		return pubKeys
 	}
 	return nil
