@@ -47,12 +47,13 @@ func (s *Service) checkAndUpdatePubkeyUUID(userHexKey, uuid string) bool {
 
 func (s *Service) followsMetadata(userHexKey string) {
 	redisClient := store.NewRedisClient()
-	redisClient.HandleFollowListPubKeys(userHexKey)
-	// for _, relayUrl := range relyaUrls {
-	// 	go func(relayUrl string) {
-	// 		s.relayConnection.GetFollowListMetadata(relayUrl, userHexKey, pubKeys)
-	// 	}(relayUrl)
-	// }
+	pubKeys := redisClient.HandleFollowListPubKeys(userHexKey)
+	fmt.Printf("PubKeys: %v\n", pubKeys)
+	for _, relayUrl := range s.relayUrls {
+		go func(relayUrl string) {
+			s.relayConnection.GetFollowListMetadata(relayUrl, userHexKey, pubKeys)
+		}(relayUrl)
+	}
 }
 
 func (s *Service) userNotes(relayUrls []string, userHexKey string, notesFinished chan<- string) {
@@ -65,6 +66,7 @@ func (s *Service) userNotes(relayUrls []string, userHexKey string, notesFinished
 
 func (s *Service) userMetadata(relayUrls []string, userHexKey string, metadataFinished chan<- string) {
 	for _, relayUrl := range relayUrls {
+		log.Printf("Relay: %v\n", relayUrl)
 		go func(url string) {
 			s.relayConnection.GetUserMetadata(url, userHexKey, metadataFinished)
 		}(relayUrl)

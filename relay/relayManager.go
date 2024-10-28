@@ -76,7 +76,7 @@ func (rm *RelayManager) createNewConnection(relayUrl string) (chan []byte, chan 
 	}
 
 	eventChan := make(chan string)
-	readChan := make(chan []byte)
+	readChan := make(chan []byte, 100)
 	writeChan := make(chan []byte)
 
 	rm.eventChans[relayUrl] = eventChan
@@ -143,15 +143,15 @@ func (rm *RelayManager) readLoop(conn *websocket.Conn, relayUrl string, readChan
 	// go rm.pongHandler(relayUrl)
 	defer conn.Close()
 
-	// err := rm.connections[relayUrl].SetReadDeadline(time.Now().Add(pongWait))
-	// if err != nil {
-	// 	fmt.Printf("error setting read dead line for relay connection: %v\n", err)
-	// }
+	err := rm.connections[relayUrl].SetReadDeadline(time.Now().Add(pongWait))
+	if err != nil {
+		fmt.Printf("error setting read dead line for relay connection: %v\n", err)
+	}
 
-	// rm.connections[relayUrl].SetPongHandler(func(string) error {
-	// 	log.Println("pong")
-	// 	return rm.connections[relayUrl].SetReadDeadline(time.Now().Add(pongWait))
-	// })
+	rm.connections[relayUrl].SetPongHandler(func(string) error {
+		log.Println("pong")
+		return rm.connections[relayUrl].SetReadDeadline(time.Now().Add(pongWait))
+	})
 
 	for {
 		messageType, reader, err := conn.NextReader()
@@ -178,19 +178,32 @@ func (rm *RelayManager) readLoop(conn *websocket.Conn, relayUrl string, readChan
 
 			select {
 			case readChan <- message:
-				fmt.Println("Message read to read channel")
+				fmt.Printf("[READ] %s: Message queued, buffer size: %d/100\n", relayUrl, len(readChan))
 			default:
-				fmt.Printf("Read channel is full, discarding message from: %v\n\n", relayUrl)
+				// Log enough to identify what we're dropping
+				var msg []interface{}
+				_ = json.Unmarshal(message, &msg)
+				fmt.Printf("[DROP] %s: Dropped message type: %v, buffer size: %d/100\n",
+					relayUrl, msg[0], len(readChan))
 			}
+			// select {
+			// case readChan <- message:
+			// 	fmt.Println("Message read to read channel")
+			// default:
+			// 	fmt.Printf("Read channel is full, discarding message from: %v\n%v\n", relayUrl, string(message))
+			// }
 		} else if messageType == websocket.BinaryMessage {
 			log.Printf("Received unexpected binary message from relay: %v\n", relayUrl)
 		}
-		time.Sleep(2 * time.Second)
+		// time.Sleep(2 * time.Second)
 	}
 }
 
 func (rm *RelayManager) processReadChannel(readChan <-chan []byte, relayUrl string, eventChan chan string) {
 	for msg := range readChan {
+		start := time.Now()
+		fmt.Printf("[DEBUG] Starting to process message from %s\n", relayUrl)
+
 		var relayMessage []interface{}
 		err := json.Unmarshal(msg, &relayMessage)
 
@@ -198,7 +211,22 @@ func (rm *RelayManager) processReadChannel(readChan <-chan []byte, relayUrl stri
 			log.Printf("Error unmarshalling relay message: %v\n", err)
 			continue
 		}
+
+		// Log the message type before processing
+		if len(relayMessage) > 0 {
+			fmt.Printf("[DEBUG] Processing message type: %v from %s\n", relayMessage[0], relayUrl)
+		}
+
 		rm.processMessage(relayMessage, relayUrl, eventChan)
+		fmt.Printf("[PROCESS] %s: Processed message in %v\n", relayUrl, time.Since(start))
+		// var relayMessage []interface{}
+		// err := json.Unmarshal(msg, &relayMessage)
+
+		// if err != nil {
+		// 	log.Printf("Error unmarshalling relay message: %v\n", err)
+		// 	continue
+		// }
+		// rm.processMessage(relayMessage, relayUrl, eventChan)
 	}
 }
 

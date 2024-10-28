@@ -117,7 +117,7 @@ func MetadataQueue(metadataEvent []interface{}, eventChan chan string) {
 		fmt.Printf("Error marshalling metadata event into JSON: %v\n", err)
 	}
 	setQueue(queueName, metadataEventJSON, eventChan)
-	eventChan <- "done"
+	// eventChan <- "done"
 }
 
 func FollowListQueue(followListEvent []interface{}, eventChan chan string) {

@@ -42,15 +42,12 @@ func HandleEvent(eventData []interface{}, eventChan chan string, connector core.
 	content, ok := eventData[2].(map[string]interface{})
 	if !ok {
 		fmt.Printf("Could not extract content from event data")
+		return
 	}
 	kind, ok := content["kind"].(float64)
 	if !ok {
 		fmt.Printf("Could not extract kind from content")
 	}
-	// pubKey, ok := content["pubkey"].(string)
-	// if !ok {
-	// 	fmt.Printf("Could not extract pubkey from content")
-	// }
 
 	switch kind {
 	case 0:
