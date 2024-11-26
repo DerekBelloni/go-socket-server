@@ -6,6 +6,8 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+
+	"github.com/DerekBelloni/go-socket-server/data"
 )
 
 type ContextualSubscriptionRequest struct {
@@ -120,4 +122,6 @@ func FollowListMetadataSubscription(relayUrl string, pubKeys []string, writeChan
 	}
 }
 
-// func CreateNoteSubscription(relayUrl string, )
+func CreateNoteSubscription(relayUrl string, newNote data.NewNote, writeChan chan<- []byte, eventChan <-chan string) {
+
+}

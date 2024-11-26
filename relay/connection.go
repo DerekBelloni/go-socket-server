@@ -59,14 +59,13 @@ func (rc *RelayConnection) GetFollowListMetadata(relayUrl string, userHexKey str
 	subscriptions.FollowListMetadataSubscription(relayUrl, pubKeys, writeChan, eventChan)
 }
 
-func SendNoteToRelay(relayUrl string, newNote data.NewNote, noteFinished chan<- string) {
+func (rc *RelayConnection) SendNoteToRelay(relayUrl string, newNote data.NewNote) {
 	writeChan, eventChan, err := rc.GetConnection(relayUrl)
 	if err != nil {
 		fmt.Printf("Dial error: ", err)
 	}
-	defer conn.Close()
 
-	// handleNewNote(conn, relayUrl, newNote, noteFinished)
+	subscriptions.CreateNoteSubscription(relayUrl, newNote, writeChan, eventChan)
 }
 
 // func GetClassifiedListings(relayUrl string) {

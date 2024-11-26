@@ -7,7 +7,6 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/DerekBelloni/go-socket-server/data"
 	"github.com/DerekBelloni/go-socket-server/relay"
 	"github.com/DerekBelloni/go-socket-server/store"
 	amqp "github.com/rabbitmq/amqp091-go"
@@ -246,7 +245,7 @@ func (s *Service) StartFollowsMetadataQueue() {
 	<-forever
 }
 
-func (s *Service) StartCreateNoteQueue(relayUrls []string) {
+func (s *Service) StartCreateNoteQueue() {
 	forever := make(chan struct{})
 
 	conn, err := amqp.Dial("amqp://guest:guest@localhost:5672/")
@@ -276,38 +275,61 @@ func (s *Service) StartCreateNoteQueue(relayUrls []string) {
 	}
 
 	go func() {
-		msgs, err := channel.Consume(
-			queue.Name,
-			"",
-			true,
-			false,
-			false,
-			false,
-			nil,
-		)
-		if err != nil {
-			fmt.Println("Failed to register a consumer")
-		}
+		for {
+			msgs, err := channel.Consume(
+				queue.Name,
+				"",
+				true,
+				false,
+				false,
+				false,
+				nil,
+			)
+			if err != nil {
+				fmt.Println("Failed to register a consumer")
+			}
 
-		var wg sync.WaitGroup
+			// var wg sync.WaitGroup
 
-		for msg := range msgs {
-			go func(msg amqp.Delivery) {
-				var newNote data.NewNote
-				err := json.Unmarshal([]byte(msg.Body), &newNote)
+			for d := range msgs {
+				// var newNote data.NewNote
+				var result map[string]interface{}
+				// err := json.Unmarshal([]byte(d.Body), &newNote)
+				err := json.Unmarshal([]byte(d.Body), &result)
 				if err != nil {
 					fmt.Printf("Error unmarshalling json: %v\n", err)
-					return
+					continue
+				}
+				prettyJSON, _ := json.MarshalIndent(result, "", "   ")
+				fmt.Printf("Parsed JSON:\n%s\n", string(prettyJSON))
+				fmt.Printf("Result, uuid: %v\n", result)
+				userHexKeyUUID, ok := result["pubKeyUUID"].(string)
+				if !ok {
+					fmt.Println("Invalid or missing content")
+					continue
 				}
 
-				for _, url := range relayUrls {
-					wg.Add(1)
-					go func(url string) {
-						defer wg.Done()
-						s.createNote(url, newNote)
-					}(url)
+				parts := strings.Split(userHexKeyUUID, ":")
+				if len(parts) != 2 {
+					continue
 				}
-			}(msg)
+
+				// fmt.Printf("new note: %v\n", newNote)
+				// in order:
+				// private key
+				// pub key
+				// kind
+				// content
+
+				// 	for _, url := range relayUrls {
+				// 		wg.Add(1)
+				// 		go func(url string) {
+				// 			defer wg.Done()
+				// 			s.createNote(url, newNote)
+				// 		}(url)
+				// 	}
+				// }
+			}
 		}
 	}()
 
