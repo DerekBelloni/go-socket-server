@@ -3,6 +3,7 @@ package relay
 import (
 	"fmt"
 
+	"github.com/DerekBelloni/go-socket-server/data"
 	"github.com/DerekBelloni/go-socket-server/subscriptions"
 )
 
@@ -52,23 +53,21 @@ func (rc *RelayConnection) GetFollowListMetadata(relayUrl string, userHexKey str
 	writeChan, eventChan, err := rc.GetConnection(relayUrl)
 
 	if err != nil {
-		fmt.Printf("Diale error: %v\n", err)
+		fmt.Printf("Dial error: %v\n", err)
 	}
 
 	subscriptions.FollowListMetadataSubscription(relayUrl, pubKeys, writeChan, eventChan)
 }
 
-// func SendNoteToRelay(relayUrl string, newNote data.NewNote, noteFinished chan<- string) {
-// 	conn, _, err := websocket.DefaultDialer.Dial(relayUrl, nil)
-// 	// conn, err := getConnection(relayUrl)
-// 	log := logrus.WithField("relay", relayUrl)
-// 	if err != nil {
-// 		log.Error("Dial error: ", err)
-// 	}
-// 	defer conn.Close()
+func SendNoteToRelay(relayUrl string, newNote data.NewNote, noteFinished chan<- string) {
+	writeChan, eventChan, err := rc.GetConnection(relayUrl)
+	if err != nil {
+		fmt.Printf("Dial error: ", err)
+	}
+	defer conn.Close()
 
-// 	handleNewNote(conn, relayUrl, newNote, noteFinished)
-// }
+	// handleNewNote(conn, relayUrl, newNote, noteFinished)
+}
 
 // func GetClassifiedListings(relayUrl string) {
 // 	conn, _, err := websocket.DefaultDialer.Dial(relayUrl, nil)

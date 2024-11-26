@@ -119,3 +119,5 @@ func FollowListMetadataSubscription(relayUrl string, pubKeys []string, writeChan
 		}(pubKey)
 	}
 }
+
+// func CreateNoteSubscription(relayUrl string, )
