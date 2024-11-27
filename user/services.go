@@ -7,6 +7,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/DerekBelloni/go-socket-server/data"
 	"github.com/DerekBelloni/go-socket-server/relay"
 	"github.com/DerekBelloni/go-socket-server/store"
 	amqp "github.com/rabbitmq/amqp091-go"
@@ -81,10 +82,10 @@ func (s *Service) followList(relayUrls []string, userHexKey string, followsFinis
 	}
 }
 
-func (s *Service) createNote(relayUrls []string, note string) {
-	for _, relayUrl := range relayUrls {
+func (s *Service) createNote(note data.NewNote) {
+	for _, relayUrl := range s.relayUrls {
 		go func(relayUrl string) {
-			// s.relayConnection.SendNoteToRelay(relayUrl, newNote)
+			s.relayConnection.SendNoteToRelay(relayUrl, note)
 		}(relayUrl)
 	}
 }
@@ -289,20 +290,16 @@ func (s *Service) StartCreateNoteQueue() {
 				fmt.Println("Failed to register a consumer")
 			}
 
-			// var wg sync.WaitGroup
-
 			for d := range msgs {
-				// var newNote data.NewNote
 				var result map[string]interface{}
-				// err := json.Unmarshal([]byte(d.Body), &newNote)
+				var newNote data.NewNote
+
 				err := json.Unmarshal([]byte(d.Body), &result)
 				if err != nil {
 					fmt.Printf("Error unmarshalling json: %v\n", err)
 					continue
 				}
-				prettyJSON, _ := json.MarshalIndent(result, "", "   ")
-				fmt.Printf("Parsed JSON:\n%s\n", string(prettyJSON))
-				fmt.Printf("Result, uuid: %v\n", result)
+
 				userHexKeyUUID, ok := result["pubKeyUUID"].(string)
 				if !ok {
 					fmt.Println("Invalid or missing content")
@@ -314,21 +311,45 @@ func (s *Service) StartCreateNoteQueue() {
 					continue
 				}
 
-				// fmt.Printf("new note: %v\n", newNote)
-				// in order:
-				// private key
-				// pub key
-				// kind
-				// content
+				userHexKey := parts[0]
+				uuid := parts[1]
 
-				// 	for _, url := range relayUrls {
-				// 		wg.Add(1)
-				// 		go func(url string) {
-				// 			defer wg.Done()
-				// 			s.createNote(url, newNote)
-				// 		}(url)
-				// 	}
-				// }
+				s.pubKeyUUIDLock.Lock()
+				existingUUID, exists := s.pubKeyUUID[userHexKey]
+				if exists && existingUUID == uuid {
+					s.pubKeyUUIDLock.Unlock()
+					fmt.Printf("Mapping already exists for Pubkey: %s. Skipping processing\n", userHexKeyUUID)
+					continue
+				}
+
+				s.pubKeyUUID[userHexKey] = uuid
+				s.pubKeyUUIDLock.Unlock()
+
+				newNote.Content, ok = result["content"].(string)
+				if !ok {
+					fmt.Println("Invalid or missing content")
+					continue
+				}
+
+				newNote.PubHexKey, ok = result["pubKeyHex"].(string)
+				if !ok {
+					fmt.Println("Invalid or missing public hex key")
+					continue
+				}
+
+				newNote.PrivHexKey, ok = result["privHexKey"].(string)
+				if !ok {
+					fmt.Println("Invalid or missing private hex key")
+					continue
+				}
+
+				newNote.Kind, ok = result["kind"].(int)
+				if !ok {
+					fmt.Println("Invalid or missing event kind")
+					continue
+				}
+
+				s.createNote(newNote)
 			}
 		}
 	}()
