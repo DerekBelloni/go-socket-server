@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"reflect"
 	"strings"
 	"sync"
 
@@ -313,7 +314,7 @@ func (s *Service) StartCreateNoteQueue() {
 
 				userHexKey := parts[0]
 				uuid := parts[1]
-
+				// I have abstracted this functionality out, call that
 				s.pubKeyUUIDLock.Lock()
 				existingUUID, exists := s.pubKeyUUID[userHexKey]
 				if exists && existingUUID == uuid {
@@ -330,10 +331,10 @@ func (s *Service) StartCreateNoteQueue() {
 					fmt.Println("Invalid or missing content")
 					continue
 				}
-
-				newNote.PubHexKey, ok = result["pubKeyHex"].(string)
+				fmt.Printf("type of kind: %v\n", reflect.TypeOf(result["kind"]))
+				newNote.PubHexKey, ok = result["pubHexKey"].(string)
 				if !ok {
-					fmt.Println("Invalid or missing public hex key")
+					fmt.Println("")
 					continue
 				}
 
@@ -343,7 +344,7 @@ func (s *Service) StartCreateNoteQueue() {
 					continue
 				}
 
-				newNote.Kind, ok = result["kind"].(int)
+				newNote.Kind, ok = result["kind"].(float64)
 				if !ok {
 					fmt.Println("Invalid or missing event kind")
 					continue
@@ -356,15 +357,3 @@ func (s *Service) StartCreateNoteQueue() {
 
 	<-forever
 }
-
-// func classifiedListings(relayUrls []string) {
-// 	var innerWg sync.WaitGroup
-// 	for _, url := range relayUrls {
-// 		innerWg.Add(1)
-// 		go func(relayUrl string) {
-// 			defer innerWg.Done()
-// 			relay.GetClassifiedListings(relayUrl)
-// 		}(url)
-// 		innerWg.Wait()
-// 	}
-// }

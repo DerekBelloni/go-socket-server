@@ -123,5 +123,7 @@ func FollowListMetadataSubscription(relayUrl string, pubKeys []string, writeChan
 }
 
 func CreateNoteSubscription(relayUrl string, newNote data.NewNote, writeChan chan<- []byte, eventChan <-chan string) {
-	fmt.Printf("new note: %v\n", newNote)
+	fmt.Printf("!!!!!!!!new note: %v\n", newNote.Content)
+	// formattedNote := FormatNoteContent(newNote)
+	// fmt.Printf("formatted note content: %v\n", formattedNote)
 }
