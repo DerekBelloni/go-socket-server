@@ -126,4 +126,9 @@ func CreateNoteSubscription(relayUrl string, newNote data.NewNote, writeChan cha
 	fmt.Printf("!!!!!!!!new note: %v\n", newNote.Content)
 	// formattedNote := FormatNoteContent(newNote)
 	// fmt.Printf("formatted note content: %v\n", formattedNote)
+
+	// formatting rules
+	// line breaks represented as '\n'
+	// utf-8 encoded
+	// no html or markup, just plain text
 }
