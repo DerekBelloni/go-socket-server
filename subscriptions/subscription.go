@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/DerekBelloni/go-socket-server/data"
 )
@@ -123,12 +124,18 @@ func FollowListMetadataSubscription(relayUrl string, pubKeys []string, writeChan
 }
 
 func CreateNoteSubscription(relayUrl string, newNote data.NewNote, writeChan chan<- []byte, eventChan <-chan string) {
-	fmt.Printf("!!!!!!!!new note: %v\n", newNote.Content)
-	// formattedNote := FormatNoteContent(newNote)
-	// fmt.Printf("formatted note content: %v\n", formattedNote)
-
-	// formatting rules
-	// line breaks represented as '\n'
-	// utf-8 encoded
-	// no html or markup, just plain text
+	event := data.NostrEvent{
+		PubKey:    newNote.PubHexKey,
+		CreatedAt: time.Now().Unix(),
+		Kind:      newNote.Kind,
+		Tags:      [][]string{},
+		Content:   newNote.Content,
+	}
+	if err := event.GenerateId(); err != nil {
+		fmt.Printf("Error generating an event id: %v\n", err)
+	}
+	if err := event.SignEvent(newNote.PrivHexKey); err != nil {
+		fmt.Printf("Error signing the event: %v\n", err)
+	}
+	fmt.Printf("signed event: %v\n", event)
 }

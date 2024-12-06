@@ -219,14 +219,6 @@ func (rm *RelayManager) processReadChannel(readChan <-chan []byte, relayUrl stri
 
 		rm.processMessage(relayMessage, relayUrl, eventChan)
 		fmt.Printf("[PROCESS] %s: Processed message in %v\n", relayUrl, time.Since(start))
-		// var relayMessage []interface{}
-		// err := json.Unmarshal(msg, &relayMessage)
-
-		// if err != nil {
-		// 	log.Printf("Error unmarshalling relay message: %v\n", err)
-		// 	continue
-		// }
-		// rm.processMessage(relayMessage, relayUrl, eventChan)
 	}
 }
 

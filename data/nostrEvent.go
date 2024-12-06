@@ -14,7 +14,7 @@ type NostrEvent struct {
 	ID        string     `json:"id,omitempty"`
 	PubKey    string     `json:"pubkey"`
 	CreatedAt int64      `json:"created_at"`
-	Kind      int        `json:"kind"`
+	Kind      float64    `json:"kind"`
 	Tags      [][]string `json:"tags"`
 	Content   string     `json:"content"`
 	Sig       string     `json:"sig,omitempty"`
