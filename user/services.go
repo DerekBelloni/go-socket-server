@@ -79,7 +79,10 @@ func (s *Service) followsMetadata(userHexKey string) {
 }
 
 func (s *Service) retrieveSearch(search string) {
-
+	relayUrl := "wss://relay.nostr.band/"
+	go func() {
+		s.relayConnection.RetrieveSearch(relayUrl, search)
+	}()
 }
 
 func (s *Service) userNotes(relayUrls []string, userHexKey string, notesFinished chan<- string) {

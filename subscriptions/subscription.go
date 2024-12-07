@@ -123,7 +123,7 @@ func FollowListMetadataSubscription(relayUrl string, pubKeys []string, writeChan
 	}
 }
 
-func CreateNoteSubscription(relayUrl string, newNote data.NewNote, writeChan chan<- []byte, eventChan <-chan string) {
+func CreateNoteEvent(relayUrl string, newNote data.NewNote, writeChan chan<- []byte, eventChan <-chan string) {
 	event := data.NostrEvent{
 		PubKey:    newNote.PubHexKey,
 		CreatedAt: time.Now().Unix(),
@@ -150,4 +150,27 @@ func CreateNoteSubscription(relayUrl string, newNote data.NewNote, writeChan cha
 		fmt.Printf("Error marshalling event: %v\n ", err)
 	}
 	writeChan <- jsonBytes
+}
+
+func RetrieveSearchSubscription(relayUrl string, search string, writeChan chan<- []byte, eventChan <-chan string) {
+	go func() {
+		subscriptionID, err := generateRandomString(16)
+		if err != nil {
+			fmt.Printf("Error generating a subscription id: %v\n", err)
+		}
+		subscriptionRequest := []interface{}{
+			"REQ",
+			subscriptionID,
+			map[string]interface{}{
+				"kind":   1,
+				"limit":  10,
+				"search": search,
+			},
+		}
+		subscriptionRequestJSON, err := json.Marshal(subscriptionRequest)
+		if err != nil {
+			fmt.Printf("Error marshalling subscription request: %v\n ", err)
+		}
+		writeChan <- subscriptionRequestJSON
+	}()
 }

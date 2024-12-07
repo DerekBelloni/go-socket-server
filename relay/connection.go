@@ -62,10 +62,18 @@ func (rc *RelayConnection) GetFollowListMetadata(relayUrl string, userHexKey str
 func (rc *RelayConnection) SendNoteToRelay(relayUrl string, newNote data.NewNote) {
 	writeChan, eventChan, err := rc.GetConnection(relayUrl)
 	if err != nil {
-		fmt.Printf("Dial error: ", err)
+		fmt.Printf("Dial error: %v\n", err)
 	}
 
-	subscriptions.CreateNoteSubscription(relayUrl, newNote, writeChan, eventChan)
+	subscriptions.CreateNoteEvent(relayUrl, newNote, writeChan, eventChan)
+}
+
+func (rc *RelayConnection) RetrieveSearch(relayUrl string, search string) {
+	writeChan, eventChan, err := rc.GetConnection(relayUrl)
+	if err != nil {
+		fmt.Printf("Dial error: %v\n", err)
+	}
+	subscriptions.RetrieveSearchSubscription(relayUrl, search, writeChan, eventChan)
 }
 
 // func GetClassifiedListings(relayUrl string) {

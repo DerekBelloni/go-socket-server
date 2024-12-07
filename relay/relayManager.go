@@ -178,7 +178,7 @@ func (rm *RelayManager) readLoop(conn *websocket.Conn, relayUrl string, readChan
 
 			select {
 			case readChan <- message:
-				fmt.Printf("[READ] %s: Message queued, buffer size: %d/100\n", relayUrl, len(readChan))
+				// fmt.Printf("[READ] %s: Message queued, buffer size: %d/100\n", relayUrl, len(readChan))
 			default:
 				// Log enough to identify what we're dropping
 				var msg []interface{}
@@ -194,9 +194,6 @@ func (rm *RelayManager) readLoop(conn *websocket.Conn, relayUrl string, readChan
 
 func (rm *RelayManager) processReadChannel(readChan <-chan []byte, relayUrl string, eventChan chan string) {
 	for msg := range readChan {
-		start := time.Now()
-		fmt.Printf("[DEBUG] Starting to process message from %s\n", relayUrl)
-
 		var relayMessage []interface{}
 		err := json.Unmarshal(msg, &relayMessage)
 
@@ -205,13 +202,7 @@ func (rm *RelayManager) processReadChannel(readChan <-chan []byte, relayUrl stri
 			continue
 		}
 
-		// Log the message type before processing
-		if len(relayMessage) > 0 {
-			fmt.Printf("[DEBUG] Processing message type: %v from %s\n", relayMessage[0], relayUrl)
-		}
-
 		rm.processMessage(relayMessage, relayUrl, eventChan)
-		fmt.Printf("[PROCESS] %s: Processed message in %v\n", relayUrl, time.Since(start))
 	}
 }
 

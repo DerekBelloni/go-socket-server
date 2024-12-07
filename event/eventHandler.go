@@ -48,7 +48,7 @@ func HandleEvent(eventData []interface{}, eventChan chan string, connector core.
 	if !ok {
 		fmt.Printf("Could not extract kind from content")
 	}
-
+	fmt.Printf("event data from search: %v\n", eventData...)
 	switch kind {
 	case 0:
 		queue.MetadataQueue(eventData, eventChan)
