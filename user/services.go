@@ -19,6 +19,8 @@ type Service struct {
 	relayUrls       []string
 	pubKeyUUID      map[string]string
 	pubKeyUUIDLock  sync.RWMutex
+	searchUUID      map[string]string
+	searchUUIDLock  sync.RWMutex
 }
 
 func NewService(relayConnection *relay.RelayConnection, relayUrls []string) *Service {
@@ -26,6 +28,7 @@ func NewService(relayConnection *relay.RelayConnection, relayUrls []string) *Ser
 		relayConnection: relayConnection,
 		relayUrls:       relayUrls,
 		pubKeyUUID:      make(map[string]string),
+		searchUUID:      make(map[string]string),
 	}
 }
 
@@ -48,6 +51,22 @@ func (s *Service) checkAndUpdatePubkeyUUID(userHexKey, uuid string) bool {
 	return true
 }
 
+func (s *Service) createNote(note data.NewNote) {
+	for _, relayUrl := range s.relayUrls {
+		go func(relayUrl string) {
+			s.relayConnection.SendNoteToRelay(relayUrl, note)
+		}(relayUrl)
+	}
+}
+
+func (s *Service) followList(relayUrls []string, userHexKey string, followsFinished chan<- string) {
+	for _, relayUrl := range relayUrls {
+		go func(relayUrl string) {
+			s.relayConnection.GetFollowList(relayUrl, userHexKey, followsFinished)
+		}(relayUrl)
+	}
+}
+
 func (s *Service) followsMetadata(userHexKey string) {
 	redisClient := store.NewRedisClient()
 	pubKeys := redisClient.HandleFollowListPubKeys(userHexKey)
@@ -57,6 +76,10 @@ func (s *Service) followsMetadata(userHexKey string) {
 			s.relayConnection.GetFollowListMetadata(relayUrl, userHexKey, pubKeys)
 		}(relayUrl)
 	}
+}
+
+func (s *Service) retrieveSearch(search string) {
+
 }
 
 func (s *Service) userNotes(relayUrls []string, userHexKey string, notesFinished chan<- string) {
@@ -71,22 +94,6 @@ func (s *Service) userMetadata(relayUrls []string, userHexKey string, metadataFi
 	for _, relayUrl := range relayUrls {
 		go func(url string) {
 			s.relayConnection.GetUserMetadata(url, userHexKey, metadataFinished)
-		}(relayUrl)
-	}
-}
-
-func (s *Service) followList(relayUrls []string, userHexKey string, followsFinished chan<- string) {
-	for _, relayUrl := range relayUrls {
-		go func(relayUrl string) {
-			s.relayConnection.GetFollowList(relayUrl, userHexKey, followsFinished)
-		}(relayUrl)
-	}
-}
-
-func (s *Service) createNote(note data.NewNote) {
-	for _, relayUrl := range s.relayUrls {
-		go func(relayUrl string) {
-			s.relayConnection.SendNoteToRelay(relayUrl, note)
 		}(relayUrl)
 	}
 }
@@ -355,5 +362,75 @@ func (s *Service) StartCreateNoteQueue() {
 		}
 	}()
 
+	<-forever
+}
+func (s *Service) StartSearchQueue() {
+	forever := make(chan struct{})
+
+	conn, err := amqp.Dial("amqp://guest:guest@localhost:5672/")
+	if err != nil {
+		fmt.Println("Failed to connect to RabbitMQ", err)
+	}
+	defer conn.Close()
+
+	channel, err := conn.Channel()
+	if err != nil {
+		fmt.Println("Failed to open a channel")
+	}
+
+	defer channel.Close()
+
+	queue, err := channel.QueueDeclare(
+		"search",
+		false,
+		false,
+		false,
+		false,
+		nil,
+	)
+
+	if err != nil {
+		fmt.Println("Failed to declare a queue", err)
+	}
+
+	go func() {
+		for {
+			msgs, err := channel.Consume(
+				queue.Name,
+				"",
+				true,
+				false,
+				false,
+				false,
+				nil,
+			)
+			if err != nil {
+				fmt.Println("Failed to register a consumer")
+			}
+
+			for d := range msgs {
+				searchUUID := string(d.Body)
+				parts := strings.Split(searchUUID, ":")
+				if len(parts) != 2 {
+					continue
+				}
+
+				search := parts[0]
+				uuid := parts[1]
+				s.searchUUIDLock.Lock()
+				existingUUID, exists := s.searchUUID[search]
+				if exists && existingUUID == uuid {
+					s.searchUUIDLock.Unlock()
+					fmt.Printf("Mapping already exists for search: %s. Skipping processing\n", search)
+					continue
+				}
+
+				s.searchUUID[search] = uuid
+				s.searchUUIDLock.Unlock()
+
+				s.retrieveSearch(search)
+			}
+		}
+	}()
 	<-forever
 }

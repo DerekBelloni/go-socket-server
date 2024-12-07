@@ -21,6 +21,7 @@ func main() {
 	go userService.StartMetadataQueue()
 	go userService.StartFollowsMetadataQueue()
 	go userService.StartCreateNoteQueue()
+	go userService.StartSearchQueue()
 
 	var forever chan struct{}
 	<-forever

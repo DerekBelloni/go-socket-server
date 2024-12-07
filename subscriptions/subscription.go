@@ -131,10 +131,6 @@ func CreateNoteSubscription(relayUrl string, newNote data.NewNote, writeChan cha
 		Tags:      [][]string{},
 		Content:   newNote.Content,
 	}
-	// subscriptionID, err := generateRandomString(16)
-	// if err != nil {
-	// 	fmt.Printf("Error generating a subscription id: %v\n", err)
-	// }
 
 	if err := event.GenerateId(); err != nil {
 		fmt.Printf("Error generating an event id: %v\n", err)
