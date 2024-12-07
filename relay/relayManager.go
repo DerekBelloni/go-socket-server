@@ -186,16 +186,9 @@ func (rm *RelayManager) readLoop(conn *websocket.Conn, relayUrl string, readChan
 				fmt.Printf("[DROP] %s: Dropped message type: %v, buffer size: %d/100\n",
 					relayUrl, msg[0], len(readChan))
 			}
-			// select {
-			// case readChan <- message:
-			// 	fmt.Println("Message read to read channel")
-			// default:
-			// 	fmt.Printf("Read channel is full, discarding message from: %v\n%v\n", relayUrl, string(message))
-			// }
 		} else if messageType == websocket.BinaryMessage {
 			log.Printf("Received unexpected binary message from relay: %v\n", relayUrl)
 		}
-		// time.Sleep(2 * time.Second)
 	}
 }
 

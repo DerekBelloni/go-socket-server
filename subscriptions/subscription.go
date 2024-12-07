@@ -131,11 +131,27 @@ func CreateNoteSubscription(relayUrl string, newNote data.NewNote, writeChan cha
 		Tags:      [][]string{},
 		Content:   newNote.Content,
 	}
+	// subscriptionID, err := generateRandomString(16)
+	// if err != nil {
+	// 	fmt.Printf("Error generating a subscription id: %v\n", err)
+	// }
+
 	if err := event.GenerateId(); err != nil {
 		fmt.Printf("Error generating an event id: %v\n", err)
 	}
+
 	if err := event.SignEvent(newNote.PrivHexKey); err != nil {
 		fmt.Printf("Error signing the event: %v\n", err)
 	}
-	fmt.Printf("signed event: %v\n", event)
+
+	eventMessage := []interface{}{
+		"EVENT",
+		event,
+	}
+
+	jsonBytes, err := json.Marshal(eventMessage)
+	if err != nil {
+		fmt.Printf("Error marshalling event: %v\n ", err)
+	}
+	writeChan <- jsonBytes
 }
