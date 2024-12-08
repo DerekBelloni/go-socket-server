@@ -21,12 +21,13 @@ var (
 )
 
 type RelayManager struct {
-	connections map[string]*websocket.Conn
-	mutex       sync.RWMutex
-	eventChans  map[string]chan string
-	readChans   map[string]chan []byte
-	writeChans  map[string]chan []byte
-	Connector   core.RelayConnector
+	connections   map[string]*websocket.Conn
+	mutex         sync.RWMutex
+	eventChans    map[string]chan string
+	readChans     map[string]chan []byte
+	writeChans    map[string]chan []byte
+	Connector     core.RelayConnector
+	SearchTracker core.SearchTracker
 }
 
 func NewRelayManager(connector core.RelayConnector) *RelayManager {

@@ -10,12 +10,14 @@ import (
 
 	"github.com/DerekBelloni/go-socket-server/data"
 	"github.com/DerekBelloni/go-socket-server/relay"
+	"github.com/DerekBelloni/go-socket-server/search"
 	"github.com/DerekBelloni/go-socket-server/store"
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
 type Service struct {
 	relayConnection *relay.RelayConnection
+	searchTracker   *search.SearchTrackerImpl
 	relayUrls       []string
 	pubKeyUUID      map[string]string
 	pubKeyUUIDLock  sync.RWMutex
@@ -23,10 +25,11 @@ type Service struct {
 	searchUUIDLock  sync.RWMutex
 }
 
-func NewService(relayConnection *relay.RelayConnection, relayUrls []string) *Service {
+func NewService(relayConnection *relay.RelayConnection, relayUrls []string, searchTracker *search.SearchTrackerImpl) *Service {
 	return &Service{
 		relayConnection: relayConnection,
 		relayUrls:       relayUrls,
+		searchTracker:   searchTracker,
 		pubKeyUUID:      make(map[string]string),
 		searchUUID:      make(map[string]string),
 	}

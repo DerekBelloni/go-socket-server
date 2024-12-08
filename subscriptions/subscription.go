@@ -40,7 +40,7 @@ func MetadataSubscription(relayUrl string, userHexKey string, writeChan chan<- [
 	}
 	subscriptionRequestJSON, err := json.Marshal(subscriptionRequest)
 	if err != nil {
-		fmt.Errorf("Error marshalling subscription request: %v\n ", err)
+		fmt.Printf("Error marshalling subscription request: %v\n ", err)
 	}
 	writeChan <- subscriptionRequestJSON
 	test := <-eventChan

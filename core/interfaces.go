@@ -10,3 +10,9 @@ type RelayConnector interface {
 	GetFollowListMetadata(relayUrl string, userHexKey string, pubKeys []string)
 	SendNoteToRelay(relayUrl string, newNote data.NewNote)
 }
+
+type SearchTracker interface {
+	InSearchEvent(event map[string]interface{}) bool
+	AddSearch(search string, uuid string)
+	RemoveSearch(search string)
+}

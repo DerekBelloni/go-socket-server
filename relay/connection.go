@@ -75,15 +75,3 @@ func (rc *RelayConnection) RetrieveSearch(relayUrl string, search string) {
 	}
 	subscriptions.RetrieveSearchSubscription(relayUrl, search, writeChan, eventChan)
 }
-
-// func GetClassifiedListings(relayUrl string) {
-// 	conn, _, err := websocket.DefaultDialer.Dial(relayUrl, nil)
-// 	// conn, err := getConnection(relayUrl)
-// 	log := logrus.WithField("relay", relayUrl)
-// 	if err != nil {
-// 		log.Error("Dial error: ", err)
-// 	}
-// 	defer conn.Close()
-
-// 	handleClassifiedListings(conn, relayUrl)
-// }
