@@ -128,3 +128,7 @@ func FollowListQueue(followListEvent []interface{}, eventChan chan string) {
 	}
 	setQueue(queueName, followListEventJSON, eventChan)
 }
+
+func SearchQueue(searchEvent []interface{}) {
+	fmt.Printf("search event in queue handler: %v\n", searchEvent...)
+}

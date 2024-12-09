@@ -38,22 +38,36 @@ func PrepareFollowsPubKeys(content map[string]interface{}, eventChan chan<- stri
 	return pubKeys
 }
 
-func HandleEvent(eventData []interface{}, eventChan chan string, connector core.RelayConnector, relayUrl string) {
+func isSearch(pubkey string, searchTracker core.SearchTracker) bool {
+
+	return false
+}
+
+func HandleEvent(eventData []interface{}, eventChan chan string, connector core.RelayConnector, relayUrl string, searchTracker core.SearchTracker) {
 	content, ok := eventData[2].(map[string]interface{})
 	if !ok {
-		fmt.Printf("Could not extract content from event data")
+		fmt.Println("Could not extract content from event data")
 		return
 	}
 	kind, ok := content["kind"].(float64)
 	if !ok {
-		fmt.Printf("Could not extract kind from content")
+		fmt.Println("Could not extract kind from content")
 	}
-	fmt.Printf("event data from search: %v\n", eventData...)
+	fmt.Printf("content data!!!: %v\n", content)
+	eventPubkey, ok := content["pubkey"].(string)
+	if !ok {
+		fmt.Println("Could not extract pubkey from event")
+	}
 	switch kind {
 	case 0:
 		queue.MetadataQueue(eventData, eventChan)
 	case 1:
-		queue.NotesQueue(eventData, eventChan)
+		// use the inSearchEvent, thats why it exists
+		if !isSearch(eventPubkey, searchTracker) {
+			queue.NotesQueue(eventData, eventChan)
+		} else {
+			queue.SearchQueue(eventData)
+		}
 	case 3:
 		queue.FollowListQueue(eventData, eventChan)
 		eventChan <- relayUrl

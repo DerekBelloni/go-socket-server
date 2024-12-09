@@ -17,6 +17,10 @@ func (st *SearchTrackerImpl) InSearchEvent(event map[string]interface{}) bool {
 	return false
 }
 
-func (st *SearchTrackerImpl) AddSearch(search string, uuid string) {}
+func (st *SearchTrackerImpl) AddSearch(search string, uuid string) {
+	// st.searchTrackerUUID[]
+}
 
-func (st *SearchTrackerImpl) RemoveSearch(search string) {}
+func (st *SearchTrackerImpl) RemoveSearch(search string) {
+
+}

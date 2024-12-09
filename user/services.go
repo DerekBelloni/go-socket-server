@@ -423,6 +423,7 @@ func (s *Service) StartSearchQueue() {
 
 				search := parts[0]
 				uuid := parts[1]
+
 				s.searchUUIDLock.Lock()
 				existingUUID, exists := s.searchUUID[search]
 				if exists && existingUUID == uuid {
@@ -431,6 +432,7 @@ func (s *Service) StartSearchQueue() {
 					continue
 				}
 
+				s.searchTracker.AddSearch(search, uuid)
 				s.searchUUID[search] = uuid
 				s.searchUUIDLock.Unlock()
 

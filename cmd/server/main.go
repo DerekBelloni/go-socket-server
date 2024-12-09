@@ -7,7 +7,7 @@ import (
 )
 
 func main() {
-	relayManager := relay.NewRelayManager(nil)
+	relayManager := relay.NewRelayManager(nil, nil)
 	relayConnection := relay.NewRelayConnection(relayManager)
 	relayManager.Connector = relayConnection
 	searchTracker := search.NewSearchTrackerImpl()

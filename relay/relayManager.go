@@ -22,6 +22,7 @@ var (
 
 type RelayManager struct {
 	connections   map[string]*websocket.Conn
+	subscriptions map[string]string
 	mutex         sync.RWMutex
 	eventChans    map[string]chan string
 	readChans     map[string]chan []byte
@@ -30,13 +31,15 @@ type RelayManager struct {
 	SearchTracker core.SearchTracker
 }
 
-func NewRelayManager(connector core.RelayConnector) *RelayManager {
+func NewRelayManager(connector core.RelayConnector, searchTracker core.SearchTracker) *RelayManager {
 	return &RelayManager{
-		connections: make(map[string]*websocket.Conn),
-		eventChans:  make(map[string]chan string),
-		readChans:   make(map[string]chan []byte),
-		writeChans:  make(map[string]chan []byte),
-		Connector:   connector,
+		connections:   make(map[string]*websocket.Conn),
+		subscriptions: make(map[string]string),
+		eventChans:    make(map[string]chan string),
+		readChans:     make(map[string]chan []byte),
+		writeChans:    make(map[string]chan []byte),
+		SearchTracker: searchTracker,
+		Connector:     connector,
 	}
 }
 
@@ -176,7 +179,6 @@ func (rm *RelayManager) readLoop(conn *websocket.Conn, relayUrl string, readChan
 				log.Printf("Error parsing JSON from relay: %v, error: %v\n", relayUrl, err)
 				continue
 			}
-
 			select {
 			case readChan <- message:
 				// fmt.Printf("[READ] %s: Message queued, buffer size: %d/100\n", relayUrl, len(readChan))
@@ -197,7 +199,7 @@ func (rm *RelayManager) processReadChannel(readChan <-chan []byte, relayUrl stri
 	for msg := range readChan {
 		var relayMessage []interface{}
 		err := json.Unmarshal(msg, &relayMessage)
-
+		fmt.Printf("relayMessage: %v\n", relayMessage)
 		if err != nil {
 			log.Printf("Error unmarshalling relay message: %v\n", err)
 			continue
@@ -216,7 +218,7 @@ func (rm *RelayManager) processMessage(relayMessage []interface{}, relayUrl stri
 
 	switch relayMsgType {
 	case "EVENT":
-		event.HandleEvent(relayMessage, eventChan, rm.Connector, relayUrl)
+		event.HandleEvent(relayMessage, eventChan, rm.Connector, relayUrl, rm.SearchTracker)
 	case "NOTICE":
 		event.HandleNotice(relayMessage)
 	case "EOSE":
