@@ -11,8 +11,9 @@ type RelayConnector interface {
 	SendNoteToRelay(relayUrl string, newNote data.NewNote)
 }
 
+// think I can get rid of this
 type SearchTracker interface {
 	InSearchEvent(event map[string]interface{}) bool
-	AddSearch(search string, uuid string)
+	AddSearch(search string, uuid string, subscriptionId string)
 	RemoveSearch(search string)
 }

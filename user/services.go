@@ -84,7 +84,7 @@ func (s *Service) followsMetadata(userHexKey string) {
 func (s *Service) retrieveSearch(search string) {
 	relayUrl := "wss://relay.nostr.band/"
 	go func() {
-		s.relayConnection.RetrieveSearch(relayUrl, search)
+		s.relayConnection.RetrieveSearch(relayUrl, search, s.searchTracker)
 	}()
 }
 
@@ -432,11 +432,11 @@ func (s *Service) StartSearchQueue() {
 					continue
 				}
 
-				s.searchTracker.AddSearch(search, uuid)
+				// s.searchTracker.AddSearch(search, uuid)
 				s.searchUUID[search] = uuid
 				s.searchUUIDLock.Unlock()
 
-				s.retrieveSearch(search)
+				s.retrieveSearch(search, uuid)
 			}
 		}
 	}()

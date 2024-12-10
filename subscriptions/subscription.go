@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/DerekBelloni/go-socket-server/data"
+	"github.com/DerekBelloni/go-socket-server/search"
 )
 
 type ContextualSubscriptionRequest struct {
@@ -152,7 +153,7 @@ func CreateNoteEvent(relayUrl string, newNote data.NewNote, writeChan chan<- []b
 	writeChan <- jsonBytes
 }
 
-func RetrieveSearchSubscription(relayUrl string, search string, writeChan chan<- []byte, eventChan <-chan string) {
+func RetrieveSearchSubscription(relayUrl string, search string, writeChan chan<- []byte, eventChan <-chan string, searchTracker *search.SearchTrackerImpl) {
 	go func() {
 		subscriptionID, err := generateRandomString(16)
 		if err != nil {
