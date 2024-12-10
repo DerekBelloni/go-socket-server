@@ -1,6 +1,9 @@
 package search
 
-import "sync"
+import (
+	"fmt"
+	"sync"
+)
 
 type SearchTrackerImpl struct {
 	searchTrackerUUID     map[string]string
@@ -19,6 +22,7 @@ func (st *SearchTrackerImpl) InSearchEvent(event map[string]interface{}) bool {
 
 func (st *SearchTrackerImpl) AddSearch(search string, uuid string, subscriptionId string) {
 	// st.searchTrackerUUID[]
+	fmt.Printf("subscriptionId: %v\n", subscriptionId)
 }
 
 func (st *SearchTrackerImpl) RemoveSearch(search string) {

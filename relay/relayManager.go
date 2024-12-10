@@ -80,7 +80,7 @@ func (rm *RelayManager) createNewConnection(relayUrl string) (chan []byte, chan 
 	}
 
 	eventChan := make(chan string)
-	readChan := make(chan []byte, 100)
+	readChan := make(chan []byte, 1000)
 	writeChan := make(chan []byte)
 
 	rm.eventChans[relayUrl] = eventChan
@@ -199,7 +199,7 @@ func (rm *RelayManager) processReadChannel(readChan <-chan []byte, relayUrl stri
 	for msg := range readChan {
 		var relayMessage []interface{}
 		err := json.Unmarshal(msg, &relayMessage)
-		fmt.Printf("relayMessage: %v\n", relayMessage)
+
 		if err != nil {
 			log.Printf("Error unmarshalling relay message: %v\n", err)
 			continue

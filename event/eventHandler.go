@@ -53,7 +53,7 @@ func HandleEvent(eventData []interface{}, eventChan chan string, connector core.
 	if !ok {
 		fmt.Println("Could not extract kind from content")
 	}
-	fmt.Printf("content data!!!: %v\n", content)
+
 	eventPubkey, ok := content["pubkey"].(string)
 	if !ok {
 		fmt.Println("Could not extract pubkey from event")
@@ -62,7 +62,6 @@ func HandleEvent(eventData []interface{}, eventChan chan string, connector core.
 	case 0:
 		queue.MetadataQueue(eventData, eventChan)
 	case 1:
-		// use the inSearchEvent, thats why it exists
 		if !isSearch(eventPubkey, searchTracker) {
 			queue.NotesQueue(eventData, eventChan)
 		} else {

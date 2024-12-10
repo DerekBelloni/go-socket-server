@@ -81,10 +81,10 @@ func (s *Service) followsMetadata(userHexKey string) {
 	}
 }
 
-func (s *Service) retrieveSearch(search string) {
+func (s *Service) retrieveSearch(search string, uuid string) {
 	relayUrl := "wss://relay.nostr.band/"
 	go func() {
-		s.relayConnection.RetrieveSearch(relayUrl, search, s.searchTracker)
+		s.relayConnection.RetrieveSearch(relayUrl, search, s.searchTracker, uuid)
 	}()
 }
 
@@ -431,7 +431,7 @@ func (s *Service) StartSearchQueue() {
 					fmt.Printf("Mapping already exists for search: %s. Skipping processing\n", search)
 					continue
 				}
-
+				fmt.Printf("fukcin you reality!: %v\n", search)
 				// s.searchTracker.AddSearch(search, uuid)
 				s.searchUUID[search] = uuid
 				s.searchUUIDLock.Unlock()
