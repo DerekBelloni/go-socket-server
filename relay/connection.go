@@ -70,10 +70,10 @@ func (rc *RelayConnection) SendNoteToRelay(relayUrl string, newNote data.NewNote
 	subscriptions.CreateNoteEvent(relayUrl, newNote, writeChan, eventChan)
 }
 
-func (rc *RelayConnection) RetrieveSearch(relayUrl string, search string, searchTracker core.SearchTracker, uuid string) {
+func (rc *RelayConnection) RetrieveSearch(relayUrl string, search string, searchTracker core.SearchTracker, uuid string, pubkey *string) {
 	writeChan, eventChan, err := rc.GetConnection(relayUrl)
 	if err != nil {
 		fmt.Printf("Dial error: %v\n", err)
 	}
-	subscriptions.RetrieveSearchSubscription(relayUrl, search, writeChan, eventChan, searchTracker, uuid)
+	subscriptions.RetrieveSearchSubscription(relayUrl, search, writeChan, eventChan, searchTracker, uuid, pubkey)
 }

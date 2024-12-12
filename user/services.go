@@ -82,10 +82,10 @@ func (s *Service) followsMetadata(userHexKey string) {
 	}
 }
 
-func (s *Service) retrieveSearch(search string, uuid string) {
+func (s *Service) retrieveSearch(search string, uuid string, pubkey *string) {
 	relayUrl := "wss://relay.nostr.band/"
 	go func() {
-		s.relayConnection.RetrieveSearch(relayUrl, search, s.searchTracker, uuid)
+		s.relayConnection.RetrieveSearch(relayUrl, search, s.searchTracker, uuid, pubkey)
 	}()
 }
 
@@ -412,8 +412,6 @@ func (s *Service) StartSearchQueue() {
 				fmt.Println("9. Failed to register a consumer", err)
 			}
 
-			fmt.Println("10. Consumer registered")
-
 			for d := range msgs {
 				fmt.Println("11. Received message:", string(d.Body))
 				searchUUID := string(d.Body)
@@ -421,10 +419,10 @@ func (s *Service) StartSearchQueue() {
 				if len(parts) < 2 {
 					continue
 				}
-				fmt.Println("search anything")
 
 				search := parts[0]
 				uuid := parts[1]
+				pubkey := parts[2]
 
 				s.searchUUIDLock.Lock()
 				existingUUID, exists := s.searchUUID[search]
@@ -437,7 +435,7 @@ func (s *Service) StartSearchQueue() {
 				s.searchUUID[search] = uuid
 				s.searchUUIDLock.Unlock()
 
-				s.retrieveSearch(search, uuid)
+				s.retrieveSearch(search, uuid, &pubkey)
 			}
 		}
 	}()

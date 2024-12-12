@@ -1,7 +1,6 @@
 package search
 
 import (
-	"fmt"
 	"sync"
 )
 
@@ -20,9 +19,16 @@ func (st *SearchTrackerImpl) InSearchEvent(event map[string]interface{}) bool {
 	return false
 }
 
-func (st *SearchTrackerImpl) AddSearch(search string, uuid string, subscriptionId string) {
-	// st.searchTrackerUUID[]
-	fmt.Printf("subscriptionId: %v\n", subscriptionId)
+func (st *SearchTrackerImpl) AddSearch(search string, uuid string, subscriptionId string, pubkey *string) {
+	if pubkey == nil {
+		st.searchTrackerUUIDLOCK.Lock()
+		st.searchTrackerUUID[subscriptionId] = uuid
+		st.searchTrackerUUIDLOCK.Unlock()
+	} else {
+		st.searchTrackerUUIDLOCK.Lock()
+		st.searchTrackerUUID[subscriptionId] = *pubkey
+		st.searchTrackerUUIDLOCK.Unlock()
+	}
 }
 
 func (st *SearchTrackerImpl) RemoveSearch(search string) {

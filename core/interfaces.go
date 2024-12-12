@@ -14,6 +14,6 @@ type RelayConnector interface {
 // think I can get rid of this
 type SearchTracker interface {
 	InSearchEvent(event map[string]interface{}) bool
-	AddSearch(search string, uuid string, subscriptionId string)
+	AddSearch(search string, uuid string, subscriptionId string, pubkey *string)
 	RemoveSearch(search string)
 }
