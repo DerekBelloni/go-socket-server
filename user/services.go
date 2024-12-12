@@ -422,7 +422,12 @@ func (s *Service) StartSearchQueue() {
 
 				search := parts[0]
 				uuid := parts[1]
-				pubkey := parts[2]
+
+				var pubkey *string
+				if len(parts) > 2 && parts[2] != "" {
+					pubkeyStr := parts[2]
+					pubkey = &pubkeyStr
+				}
 
 				s.searchUUIDLock.Lock()
 				existingUUID, exists := s.searchUUID[search]
@@ -435,7 +440,7 @@ func (s *Service) StartSearchQueue() {
 				s.searchUUID[search] = uuid
 				s.searchUUIDLock.Unlock()
 
-				s.retrieveSearch(search, uuid, &pubkey)
+				s.retrieveSearch(search, uuid, pubkey)
 			}
 		}
 	}()

@@ -44,6 +44,13 @@ func isSearch(pubkey string, searchTracker core.SearchTracker) bool {
 }
 
 func HandleEvent(eventData []interface{}, eventChan chan string, connector core.RelayConnector, relayUrl string, searchTracker core.SearchTracker) {
+	subscriptionId, ok := eventData[1].(string)
+	if !ok {
+		fmt.Println("Could not extract subscription id from event data")
+		return
+	}
+	fmt.Printf("Subscription ID: %v\n", subscriptionId)
+
 	content, ok := eventData[2].(map[string]interface{})
 	if !ok {
 		fmt.Println("Could not extract content from event data")
@@ -62,6 +69,7 @@ func HandleEvent(eventData []interface{}, eventChan chan string, connector core.
 	case 0:
 		queue.MetadataQueue(eventData, eventChan)
 	case 1:
+		// subscriptionPubkeyInMapping :=
 		if !isSearch(eventPubkey, searchTracker) {
 			queue.NotesQueue(eventData, eventChan)
 		} else {
