@@ -8,6 +8,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/DerekBelloni/go-socket-server/core"
 	"github.com/DerekBelloni/go-socket-server/data"
 	"github.com/DerekBelloni/go-socket-server/relay"
 	"github.com/DerekBelloni/go-socket-server/search"
@@ -17,7 +18,7 @@ import (
 
 type Service struct {
 	relayConnection *relay.RelayConnection
-	searchTracker   *search.SearchTrackerImpl
+	searchTracker   core.SearchTracker
 	relayUrls       []string
 	pubKeyUUID      map[string]string
 	pubKeyUUIDLock  sync.RWMutex
@@ -370,21 +371,20 @@ func (s *Service) StartCreateNoteQueue() {
 
 	<-forever
 }
+
 func (s *Service) StartSearchQueue() {
 	forever := make(chan struct{})
 
 	conn, err := amqp.Dial("amqp://guest:guest@localhost:5672/")
 	if err != nil {
-		fmt.Println("Failed to connect to RabbitMQ", err)
+		fmt.Println("2. Failed to connect to RabbitMQ", err)
 	}
 	defer conn.Close()
 
 	channel, err := conn.Channel()
 	if err != nil {
-		fmt.Println("Failed to open a channel")
+		fmt.Println("4. Failed to open a channel")
 	}
-
-	defer channel.Close()
 
 	queue, err := channel.QueueDeclare(
 		"search",
@@ -395,12 +395,10 @@ func (s *Service) StartSearchQueue() {
 		nil,
 	)
 
-	if err != nil {
-		fmt.Println("Failed to declare a queue", err)
-	}
-
 	go func() {
+		fmt.Println("7. Starting consumer goroutine")
 		for {
+			fmt.Println("8. Waiting for messages")
 			msgs, err := channel.Consume(
 				queue.Name,
 				"",
@@ -411,15 +409,19 @@ func (s *Service) StartSearchQueue() {
 				nil,
 			)
 			if err != nil {
-				fmt.Println("Failed to register a consumer")
+				fmt.Println("9. Failed to register a consumer", err)
 			}
 
+			fmt.Println("10. Consumer registered")
+
 			for d := range msgs {
+				fmt.Println("11. Received message:", string(d.Body))
 				searchUUID := string(d.Body)
 				parts := strings.Split(searchUUID, ":")
-				if len(parts) != 2 {
+				if len(parts) < 2 {
 					continue
 				}
+				fmt.Println("search anything")
 
 				search := parts[0]
 				uuid := parts[1]
@@ -431,8 +433,7 @@ func (s *Service) StartSearchQueue() {
 					fmt.Printf("Mapping already exists for search: %s. Skipping processing\n", search)
 					continue
 				}
-				fmt.Printf("fukcin you reality!: %v\n", search)
-				// s.searchTracker.AddSearch(search, uuid)
+
 				s.searchUUID[search] = uuid
 				s.searchUUIDLock.Unlock()
 

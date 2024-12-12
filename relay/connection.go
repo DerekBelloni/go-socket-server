@@ -3,11 +3,12 @@ package relay
 import (
 	"fmt"
 
+	"github.com/DerekBelloni/go-socket-server/core"
 	"github.com/DerekBelloni/go-socket-server/data"
-	"github.com/DerekBelloni/go-socket-server/search"
 	"github.com/DerekBelloni/go-socket-server/subscriptions"
 )
 
+// I dont need this struct to hold a relayManager
 type RelayConnection struct {
 	relayManager *RelayManager
 }
@@ -69,11 +70,10 @@ func (rc *RelayConnection) SendNoteToRelay(relayUrl string, newNote data.NewNote
 	subscriptions.CreateNoteEvent(relayUrl, newNote, writeChan, eventChan)
 }
 
-func (rc *RelayConnection) RetrieveSearch(relayUrl string, search string, searchTracker *search.SearchTrackerImpl, uuid string) {
+func (rc *RelayConnection) RetrieveSearch(relayUrl string, search string, searchTracker core.SearchTracker, uuid string) {
 	writeChan, eventChan, err := rc.GetConnection(relayUrl)
 	if err != nil {
 		fmt.Printf("Dial error: %v\n", err)
 	}
-	fmt.Println("here")
 	subscriptions.RetrieveSearchSubscription(relayUrl, search, writeChan, eventChan, searchTracker, uuid)
 }
