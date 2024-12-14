@@ -133,7 +133,6 @@ func FollowListQueue(followListEvent []interface{}, eventChan chan string) {
 }
 
 func SearchQueue(searchEvent []interface{}, subsriptionPubkey string, eventChan chan string) {
-	fmt.Printf("search event in queue handler: %v\n, Pubkey: %v\n", searchEvent, subsriptionPubkey)
 	queueName := "search_results"
 	searchResultStruct := SearchEventPubkey{
 		SearchEvent: searchEvent,

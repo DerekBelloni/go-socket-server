@@ -50,5 +50,5 @@ func (st *SearchTrackerImpl) AddSearch(search string, uuid string, subscriptionI
 }
 
 func (st *SearchTrackerImpl) RemoveSearch(search string) {
-
+	//
 }

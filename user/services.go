@@ -22,8 +22,6 @@ type Service struct {
 	relayUrls       []string
 	pubKeyUUID      map[string]string
 	pubKeyUUIDLock  sync.RWMutex
-	searchUUID      map[string]string
-	searchUUIDLock  sync.RWMutex
 }
 
 func NewService(relayConnection *relay.RelayConnection, relayUrls []string, searchTracker *search.SearchTrackerImpl) *Service {
@@ -32,11 +30,12 @@ func NewService(relayConnection *relay.RelayConnection, relayUrls []string, sear
 		relayUrls:       relayUrls,
 		searchTracker:   searchTracker,
 		pubKeyUUID:      make(map[string]string),
-		searchUUID:      make(map[string]string),
 	}
 }
 
 // Probably need to incorporate contexts
+// Especially now the I know I get the subscription id back on events from the relays I think it is a great idea
+
 // func createUserContext(userHexKey string) (context.Context, context.CancelFunc) {
 // 	return context.WithCancel(context.WithValue(context.Background(), "userPubKey", userHexKey))
 // }
