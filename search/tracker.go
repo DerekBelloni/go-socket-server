@@ -22,11 +22,19 @@ func (st *SearchTrackerImpl) InSearchEvent(event []interface{}) (string, bool) {
 		fmt.Println("Could not extract subscription ID from event")
 	}
 
+	var pubKeyExists bool
+
 	st.searchTrackerUUIDLOCK.Lock()
 	subscriptionPubkey := st.searchTrackerUUID[subscriptionID]
 	st.searchTrackerUUIDLOCK.Unlock()
 
-	return subscriptionPubkey, true
+	if subscriptionPubkey != "" {
+		pubKeyExists = true
+	} else {
+		pubKeyExists = false
+	}
+
+	return subscriptionPubkey, pubKeyExists
 }
 
 func (st *SearchTrackerImpl) AddSearch(search string, uuid string, subscriptionId string, pubkey *string) {

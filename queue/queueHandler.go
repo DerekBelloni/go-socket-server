@@ -9,8 +9,8 @@ import (
 )
 
 type SearchEventPubkey struct {
-	searchEvent []interface{}
-	pubKey      string
+	SearchEvent []interface{}
+	PubKey      string
 }
 
 func ConsumeQueue(queueName string) ([]byte, error) {
@@ -136,10 +136,10 @@ func FollowListQueue(followListEvent []interface{}, eventChan chan string) {
 
 func SearchQueue(searchEvent []interface{}, subsriptionPubkey string, eventChan chan string) {
 	fmt.Printf("search event in queue handler: %v\n, Pubkey: %v\n", searchEvent, subsriptionPubkey)
-	queueName := "search_result"
+	queueName := "search_results"
 	searchResultStruct := SearchEventPubkey{
-		searchEvent: searchEvent,
-		pubKey:      subsriptionPubkey,
+		SearchEvent: searchEvent,
+		PubKey:      subsriptionPubkey,
 	}
 	searchResultStructJson, err := json.Marshal(searchResultStruct)
 	if err != nil {
