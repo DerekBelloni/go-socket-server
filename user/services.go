@@ -10,6 +10,7 @@ import (
 
 	"github.com/DerekBelloni/go-socket-server/core"
 	"github.com/DerekBelloni/go-socket-server/data"
+	"github.com/DerekBelloni/go-socket-server/queue"
 	"github.com/DerekBelloni/go-socket-server/relay"
 	"github.com/DerekBelloni/go-socket-server/search"
 	"github.com/DerekBelloni/go-socket-server/store"
@@ -189,48 +190,55 @@ func (s *Service) StartMetadataQueue() {
 func (s *Service) StartFollowsMetadataQueue() {
 	forever := make(chan struct{})
 	queueName := "follow_list_metadata"
-
-	conn, err := amqp.Dial("amqp://guest:guest@localhost:5672/")
+	msgs, channel, conn, err := queue.ConsumeQueue(queueName)
 	if err != nil {
-		fmt.Println("Failed to connect to RabbitMQ", err)
+		fmt.Printf("Error consuming messages from the %v queue, %v\n", queueName, err)
+		return
 	}
-	defer conn.Close()
 
-	channel, err := conn.Channel()
-	if err != nil {
-		fmt.Println("Failed to open a channel")
-	}
 	defer channel.Close()
+	defer conn.Close()
+	// conn, err := amqp.Dial("amqp://guest:guest@localhost:5672/")
+	// if err != nil {
+	// 	fmt.Println("Failed to connect to RabbitMQ", err)
+	// }
+	// defer conn.Close()
 
-	queue, err := channel.QueueDeclare(
-		queueName,
-		false,
-		false,
-		false,
-		false,
-		nil,
-	)
+	// channel, err := conn.Channel()
+	// if err != nil {
+	// 	fmt.Println("Failed to open a channel")
+	// }
+	// defer channel.Close()
 
-	if err != nil {
-		fmt.Println("Failed to declare a queue", err)
-	}
+	// queue, err := channel.QueueDeclare(
+	// 	queueName,
+	// 	false,
+	// 	false,
+	// 	false,
+	// 	false,
+	// 	nil,
+	// )
+
+	// if err != nil {
+	// 	fmt.Println("Failed to declare a queue", err)
+	// }
 
 	go func() {
 		for {
-			msgs, err := channel.Consume(
-				queue.Name,
-				"",
-				true,
-				false,
-				false,
-				false,
-				nil,
-			)
+			// msgs, err := channel.Consume(
+			// 	queue.Name,
+			// 	"",
+			// 	true,
+			// 	false,
+			// 	false,
+			// 	false,
+			// 	nil,
+			// )
 
-			if err != nil {
-				fmt.Println("Failed to register a consumer")
-				return
-			}
+			// if err != nil {
+			// 	fmt.Println("Failed to register a consumer")
+			// 	return
+			// }
 
 			for d := range msgs {
 				userHexKeyUUID := string(d.Body)

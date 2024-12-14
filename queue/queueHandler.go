@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/rabbitmq/amqp091-go"
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
@@ -13,19 +14,16 @@ type SearchEventPubkey struct {
 	PubKey      string
 }
 
-func ConsumeQueue(queueName string) ([]byte, error) {
+func ConsumeQueue(queueName string) (<-chan amqp091.Delivery, *amqp.Channel, *amqp.Connection, error) {
 	conn, err := amqp.Dial("amqp://guest:guest@localhost:5672/")
 	if err != nil {
-		fmt.Println("Failed to connect to RabbitMQ", err)
+		return nil, nil, nil, fmt.Errorf("failed to connect to RabbitMQ: %v", err)
 	}
-	defer conn.Close()
 
 	channel, err := conn.Channel()
 	if err != nil {
-		fmt.Println("Failed to open a channel")
+		return nil, nil, nil, fmt.Errorf("failed to open a channel: %v", err)
 	}
-
-	defer channel.Close()
 
 	queue, err := channel.QueueDeclare(
 		queueName,
@@ -36,8 +34,9 @@ func ConsumeQueue(queueName string) ([]byte, error) {
 		nil,
 	)
 	fmt.Printf("queue name: %v\n", queue.Name)
+
 	if err != nil {
-		fmt.Println("Failed to declare a queue", err)
+		return nil, nil, nil, fmt.Errorf("failed to declare queue: %v", err)
 	}
 
 	msgs, err := channel.Consume(
@@ -50,12 +49,11 @@ func ConsumeQueue(queueName string) ([]byte, error) {
 		nil,
 	)
 
-	var msgBody []byte
-	for d := range msgs {
-		msgBody = d.Body
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("failed to consume queue: %v", err)
 	}
 
-	return msgBody, nil
+	return msgs, channel, conn, err
 }
 
 func setQueue(queueName string, eventJson []byte, eventChan chan<- string) {
