@@ -1,6 +1,7 @@
 package search
 
 import (
+	"fmt"
 	"sync"
 )
 
@@ -15,8 +16,17 @@ func NewSearchTrackerImpl() *SearchTrackerImpl {
 	}
 }
 
-func (st *SearchTrackerImpl) InSearchEvent(event map[string]interface{}) bool {
-	return false
+func (st *SearchTrackerImpl) InSearchEvent(event []interface{}) (string, bool) {
+	subscriptionID, ok := event[1].(string)
+	if !ok {
+		fmt.Println("Could not extract subscription ID from event")
+	}
+
+	st.searchTrackerUUIDLOCK.Lock()
+	subscriptionPubkey := st.searchTrackerUUID[subscriptionID]
+	st.searchTrackerUUIDLOCK.Unlock()
+
+	return subscriptionPubkey, true
 }
 
 func (st *SearchTrackerImpl) AddSearch(search string, uuid string, subscriptionId string, pubkey *string) {

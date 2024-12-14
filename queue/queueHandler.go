@@ -8,6 +8,11 @@ import (
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
+type SearchEventPubkey struct {
+	searchEvent []interface{}
+	pubKey      string
+}
+
 func ConsumeQueue(queueName string) ([]byte, error) {
 	conn, err := amqp.Dial("amqp://guest:guest@localhost:5672/")
 	if err != nil {
@@ -129,6 +134,16 @@ func FollowListQueue(followListEvent []interface{}, eventChan chan string) {
 	setQueue(queueName, followListEventJSON, eventChan)
 }
 
-func SearchQueue(searchEvent []interface{}) {
-	fmt.Printf("search event in queue handler: %v\n", searchEvent...)
+func SearchQueue(searchEvent []interface{}, subsriptionPubkey string, eventChan chan string) {
+	fmt.Printf("search event in queue handler: %v\n, Pubkey: %v\n", searchEvent, subsriptionPubkey)
+	queueName := "search_result"
+	searchResultStruct := SearchEventPubkey{
+		searchEvent: searchEvent,
+		pubKey:      subsriptionPubkey,
+	}
+	searchResultStructJson, err := json.Marshal(searchResultStruct)
+	if err != nil {
+		fmt.Printf("Error marshalling search event into JSON: %v\n", err)
+	}
+	setQueue(queueName, searchResultStructJson, eventChan)
 }
