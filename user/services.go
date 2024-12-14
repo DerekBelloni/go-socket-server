@@ -14,7 +14,6 @@ import (
 	"github.com/DerekBelloni/go-socket-server/relay"
 	"github.com/DerekBelloni/go-socket-server/search"
 	"github.com/DerekBelloni/go-socket-server/store"
-	amqp "github.com/rabbitmq/amqp091-go"
 )
 
 type Service struct {
@@ -42,11 +41,18 @@ func NewService(relayConnection *relay.RelayConnection, relayUrls []string, sear
 // 	return context.WithCancel(context.WithValue(context.Background(), "userPubKey", userHexKey))
 // }
 
-func (s *Service) checkAndUpdatePubkeyUUID(userHexKey, uuid string) bool {
+func (s *Service) checkAndUpdateUUID(userHexKey, uuid string, search string) bool {
 	s.pubKeyUUIDLock.Lock()
 	defer s.pubKeyUUIDLock.Unlock()
 
-	existingUUID, exists := s.pubKeyUUID[userHexKey]
+	var existingUUID string
+	var exists bool
+
+	if userHexKey != "" {
+		existingUUID, exists = s.pubKeyUUID[userHexKey]
+	} else {
+		existingUUID, exists = s.pubKeyUUID[search]
+	}
 
 	if exists && existingUUID == uuid {
 		return false
@@ -112,48 +118,19 @@ func (s *Service) StartMetadataQueue() {
 	notesFinished := make(chan string)
 	followsFinished := make(chan string)
 
-	conn, err := amqp.Dial("amqp://guest:guest@localhost:5672/")
-	if err != nil {
-		fmt.Println("Failed to connect to RabbitMQ", err)
-	}
-	defer conn.Close()
+	queueName := "user_pub_key"
 
-	channel, err := conn.Channel()
+	msgs, channel, conn, err := queue.ConsumeQueue(queueName)
 	if err != nil {
-		fmt.Println("Failed to open a channel")
+		fmt.Printf("Error consuming messages from the %v queue, %v\n", queueName, err)
+		return
 	}
+
 	defer channel.Close()
-
-	queue, err := channel.QueueDeclare(
-		"user_pub_key",
-		false,
-		false,
-		false,
-		false,
-		nil,
-	)
-
-	if err != nil {
-		fmt.Println("Failed to declare a queue", err)
-	}
+	defer conn.Close()
 
 	go func() {
 		for {
-			msgs, err := channel.Consume(
-				queue.Name,
-				"",
-				true,
-				false,
-				false,
-				false,
-				nil,
-			)
-
-			if err != nil {
-				fmt.Println("Failed to register a consumer")
-				return
-			}
-
 			for d := range msgs {
 				userHexKeyUUID := string(d.Body)
 				parts := strings.Split(userHexKeyUUID, ":")
@@ -164,7 +141,7 @@ func (s *Service) StartMetadataQueue() {
 				userHexKey := parts[0]
 				uuid := parts[1]
 
-				if !s.checkAndUpdatePubkeyUUID(userHexKey, uuid) {
+				if !s.checkAndUpdateUUID(userHexKey, uuid, "") {
 					continue
 				}
 
@@ -190,7 +167,9 @@ func (s *Service) StartMetadataQueue() {
 func (s *Service) StartFollowsMetadataQueue() {
 	forever := make(chan struct{})
 	queueName := "follow_list_metadata"
+
 	msgs, channel, conn, err := queue.ConsumeQueue(queueName)
+
 	if err != nil {
 		fmt.Printf("Error consuming messages from the %v queue, %v\n", queueName, err)
 		return
@@ -198,48 +177,9 @@ func (s *Service) StartFollowsMetadataQueue() {
 
 	defer channel.Close()
 	defer conn.Close()
-	// conn, err := amqp.Dial("amqp://guest:guest@localhost:5672/")
-	// if err != nil {
-	// 	fmt.Println("Failed to connect to RabbitMQ", err)
-	// }
-	// defer conn.Close()
-
-	// channel, err := conn.Channel()
-	// if err != nil {
-	// 	fmt.Println("Failed to open a channel")
-	// }
-	// defer channel.Close()
-
-	// queue, err := channel.QueueDeclare(
-	// 	queueName,
-	// 	false,
-	// 	false,
-	// 	false,
-	// 	false,
-	// 	nil,
-	// )
-
-	// if err != nil {
-	// 	fmt.Println("Failed to declare a queue", err)
-	// }
 
 	go func() {
 		for {
-			// msgs, err := channel.Consume(
-			// 	queue.Name,
-			// 	"",
-			// 	true,
-			// 	false,
-			// 	false,
-			// 	false,
-			// 	nil,
-			// )
-
-			// if err != nil {
-			// 	fmt.Println("Failed to register a consumer")
-			// 	return
-			// }
-
 			for d := range msgs {
 				userHexKeyUUID := string(d.Body)
 				parts := strings.Split(userHexKeyUUID, ":")
@@ -250,16 +190,9 @@ func (s *Service) StartFollowsMetadataQueue() {
 				userHexKey := parts[0]
 				uuid := parts[1]
 
-				s.pubKeyUUIDLock.Lock()
-				existingUUID, exists := s.pubKeyUUID[userHexKey]
-				if exists && existingUUID == uuid {
-					s.pubKeyUUIDLock.Unlock()
-					fmt.Printf("Mapping already exists for Pubkey: %s. Skipping processing\n", userHexKey)
+				if !s.checkAndUpdateUUID(userHexKey, uuid, "") {
 					continue
 				}
-
-				s.pubKeyUUID[userHexKey] = uuid
-				s.pubKeyUUIDLock.Unlock()
 
 				s.followsMetadata(userHexKey)
 			}
@@ -271,48 +204,18 @@ func (s *Service) StartFollowsMetadataQueue() {
 
 func (s *Service) StartCreateNoteQueue() {
 	forever := make(chan struct{})
-
-	conn, err := amqp.Dial("amqp://guest:guest@localhost:5672/")
+	queueName := "new_note"
+	msgs, channel, conn, err := queue.ConsumeQueue(queueName)
 	if err != nil {
-		fmt.Println("Failed to connect to RabbitMQ", err)
-	}
-	defer conn.Close()
-
-	channel, err := conn.Channel()
-	if err != nil {
-		fmt.Println("Failed to open a channel")
+		fmt.Printf("Error consuming messages from the %v queue, %v\n", queueName, err)
+		return
 	}
 
 	defer channel.Close()
-
-	queue, err := channel.QueueDeclare(
-		"new_note",
-		false,
-		false,
-		false,
-		false,
-		nil,
-	)
-
-	if err != nil {
-		fmt.Println("Failed to declare a queue", err)
-	}
+	defer conn.Close()
 
 	go func() {
 		for {
-			msgs, err := channel.Consume(
-				queue.Name,
-				"",
-				true,
-				false,
-				false,
-				false,
-				nil,
-			)
-			if err != nil {
-				fmt.Println("Failed to register a consumer")
-			}
-
 			for d := range msgs {
 				var result map[string]interface{}
 				var newNote data.NewNote
@@ -336,17 +239,10 @@ func (s *Service) StartCreateNoteQueue() {
 
 				userHexKey := parts[0]
 				uuid := parts[1]
-				// I have abstracted this functionality out, call that
-				s.pubKeyUUIDLock.Lock()
-				existingUUID, exists := s.pubKeyUUID[userHexKey]
-				if exists && existingUUID == uuid {
-					s.pubKeyUUIDLock.Unlock()
-					fmt.Printf("Mapping already exists for Pubkey: %s. Skipping processing\n", userHexKeyUUID)
+
+				if !s.checkAndUpdateUUID(userHexKey, uuid, "") {
 					continue
 				}
-
-				s.pubKeyUUID[userHexKey] = uuid
-				s.pubKeyUUIDLock.Unlock()
 
 				newNote.Content, ok = result["content"].(string)
 				if !ok {
@@ -382,46 +278,19 @@ func (s *Service) StartCreateNoteQueue() {
 
 func (s *Service) StartSearchQueue() {
 	forever := make(chan struct{})
-
-	conn, err := amqp.Dial("amqp://guest:guest@localhost:5672/")
+	queueName := "search"
+	msgs, channel, conn, err := queue.ConsumeQueue(queueName)
 	if err != nil {
-		fmt.Println("2. Failed to connect to RabbitMQ", err)
+		fmt.Printf("Error consuming message from the %v queue, %v\n", queueName, err)
+		return
 	}
+
+	defer channel.Close()
 	defer conn.Close()
 
-	channel, err := conn.Channel()
-	if err != nil {
-		fmt.Println("4. Failed to open a channel")
-	}
-
-	queue, err := channel.QueueDeclare(
-		"search",
-		false,
-		false,
-		false,
-		false,
-		nil,
-	)
-
 	go func() {
-		fmt.Println("7. Starting consumer goroutine")
 		for {
-			fmt.Println("8. Waiting for messages")
-			msgs, err := channel.Consume(
-				queue.Name,
-				"",
-				true,
-				false,
-				false,
-				false,
-				nil,
-			)
-			if err != nil {
-				fmt.Println("9. Failed to register a consumer", err)
-			}
-
 			for d := range msgs {
-				fmt.Println("11. Received message:", string(d.Body))
 				searchUUID := string(d.Body)
 				parts := strings.Split(searchUUID, ":")
 				if len(parts) < 2 {
@@ -437,16 +306,10 @@ func (s *Service) StartSearchQueue() {
 					pubkey = &pubkeyStr
 				}
 
-				s.searchUUIDLock.Lock()
-				existingUUID, exists := s.searchUUID[search]
-				if exists && existingUUID == uuid {
-					s.searchUUIDLock.Unlock()
+				if !s.checkAndUpdateUUID(*pubkey, uuid, search) {
 					fmt.Printf("Mapping already exists for search: %s. Skipping processing\n", search)
 					continue
 				}
-
-				s.searchUUID[search] = uuid
-				s.searchUUIDLock.Unlock()
 
 				s.retrieveSearch(search, uuid, pubkey)
 			}
