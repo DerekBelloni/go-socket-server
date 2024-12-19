@@ -316,3 +316,37 @@ func (s *Service) StartSearchQueue() {
 	}()
 	<-forever
 }
+
+func (s *Service) StartFollowsNotesQueue() {
+	forever := make(chan struct{})
+	queueName := "follow_notes"
+	msgs, channel, conn, err := queue.ConsumeQueue(queueName)
+	if err != nil {
+		fmt.Printf("Error consumingn message from the %v queue, %v\n", queueName, err)
+	}
+
+	defer channel.Close()
+	defer conn.Close()
+
+	go func() {
+		for {
+			for d := range msgs {
+				userHexKeyUUID := string(d.Body)
+				parts := strings.Split(userHexKeyUUID, ":")
+				if len(parts) != 2 {
+					continue
+				}
+
+				userHexKey := parts[0]
+				uuid := parts[1]
+
+				if !s.checkAndUpdateUUID(userHexKey, uuid, "") {
+					continue
+				}
+
+			}
+		}
+	}()
+
+	<-forever
+}
