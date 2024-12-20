@@ -28,10 +28,10 @@ type RelayManager struct {
 	readChans     map[string]chan []byte
 	writeChans    map[string]chan []byte
 	Connector     core.RelayConnector
-	SearchTracker core.SearchTracker
+	SearchTracker core.SubscriptionTracker
 }
 
-func NewRelayManager(connector core.RelayConnector, searchTracker core.SearchTracker) *RelayManager {
+func NewRelayManager(connector core.RelayConnector, searchTracker core.SubscriptionTracker) *RelayManager {
 	return &RelayManager{
 		connections:   make(map[string]*websocket.Conn),
 		subscriptions: make(map[string]string),

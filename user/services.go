@@ -18,7 +18,7 @@ import (
 
 type Service struct {
 	relayConnection *relay.RelayConnection
-	searchTracker   core.SearchTracker
+	searchTracker   core.SubscriptionTracker
 	relayUrls       []string
 	pubKeyUUID      map[string]string
 	pubKeyUUIDLock  sync.RWMutex
@@ -86,6 +86,10 @@ func (s *Service) followsMetadata(userHexKey string) {
 			s.relayConnection.GetFollowListMetadata(relayUrl, userHexKey, pubKeys)
 		}(relayUrl)
 	}
+}
+
+func (s *Service) followsNotes(followPubKey string) {
+
 }
 
 func (s *Service) retrieveSearch(search string, uuid string, pubkey *string) {
@@ -319,10 +323,12 @@ func (s *Service) StartSearchQueue() {
 
 func (s *Service) StartFollowsNotesQueue() {
 	forever := make(chan struct{})
+
 	queueName := "follow_notes"
+
 	msgs, channel, conn, err := queue.ConsumeQueue(queueName)
 	if err != nil {
-		fmt.Printf("Error consumingn message from the %v queue, %v\n", queueName, err)
+		fmt.Printf("Error conusming message from the %v queue, %v\n", queueName, err)
 	}
 
 	defer channel.Close()
@@ -333,16 +339,19 @@ func (s *Service) StartFollowsNotesQueue() {
 			for d := range msgs {
 				userHexKeyUUID := string(d.Body)
 				parts := strings.Split(userHexKeyUUID, ":")
-				if len(parts) != 2 {
+				if len(parts) != 3 {
 					continue
 				}
 
-				userHexKey := parts[0]
-				uuid := parts[1]
+				userPubkey := parts[0]
+				followPubkey := parts[1]
+				uuid := parts[2]
 
-				if !s.checkAndUpdateUUID(userHexKey, uuid, "") {
+				if !s.checkAndUpdateUUID(userPubkey, uuid, "") {
 					continue
 				}
+
+				fmt.Printf("user pubkey: %v\n, follows pubkey: %v\n", userPubkey, followPubkey)
 
 			}
 		}

@@ -61,6 +61,16 @@ func (rc *RelayConnection) GetFollowListMetadata(relayUrl string, userHexKey str
 	subscriptions.FollowListMetadataSubscription(relayUrl, pubKeys, writeChan, eventChan)
 }
 
+func (rc *RelayConnection) GetFollowsNotes(relayUrl string, userPubkey string, followsPubkey string, subscriptionTracker core.SubscriptionTracker, uuid *string) {
+	writeChan, eventChan, err := rc.GetConnection(relayUrl)
+
+	if err != nil {
+		fmt.Printf("Dial error: %v\n", err)
+	}
+
+	subscriptions.FollowsNotesSubscription(relayUrl, userPubkey, followsPubkey, subscriptionTracker, writeChan, eventChan)
+}
+
 func (rc *RelayConnection) SendNoteToRelay(relayUrl string, newNote data.NewNote) {
 	writeChan, eventChan, err := rc.GetConnection(relayUrl)
 	if err != nil {
@@ -70,10 +80,10 @@ func (rc *RelayConnection) SendNoteToRelay(relayUrl string, newNote data.NewNote
 	subscriptions.CreateNoteEvent(relayUrl, newNote, writeChan, eventChan)
 }
 
-func (rc *RelayConnection) RetrieveSearch(relayUrl string, search string, searchTracker core.SearchTracker, uuid string, pubkey *string) {
+func (rc *RelayConnection) RetrieveSearch(relayUrl string, search string, subscriptionTracker core.SubscriptionTracker, uuid string, pubkey *string) {
 	writeChan, eventChan, err := rc.GetConnection(relayUrl)
 	if err != nil {
 		fmt.Printf("Dial error: %v\n", err)
 	}
-	subscriptions.RetrieveSearchSubscription(relayUrl, search, writeChan, eventChan, searchTracker, uuid, pubkey)
+	subscriptions.RetrieveSearchSubscription(relayUrl, search, writeChan, eventChan, subscriptionTracker, uuid, pubkey)
 }

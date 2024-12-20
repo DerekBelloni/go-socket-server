@@ -38,7 +38,7 @@ func PrepareFollowsPubKeys(content map[string]interface{}, eventChan chan<- stri
 	return pubKeys
 }
 
-func HandleEvent(eventData []interface{}, eventChan chan string, connector core.RelayConnector, relayUrl string, searchTracker core.SearchTracker) {
+func HandleEvent(eventData []interface{}, eventChan chan string, connector core.RelayConnector, relayUrl string, searchTracker core.SubscriptionTracker) {
 	content, ok := eventData[2].(map[string]interface{})
 	if !ok {
 		fmt.Println("Could not extract content from event data")

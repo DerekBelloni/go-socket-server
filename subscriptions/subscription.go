@@ -124,6 +124,23 @@ func FollowListMetadataSubscription(relayUrl string, pubKeys []string, writeChan
 	}
 }
 
+func FollowsNotesSubscription(relayUrl string, userPubkey string, followsPubkey string, subscriptionTracker core.SubscriptionTracker, writeChan chan<- []byte, eventChan <-chan string) {
+	subscriptionID, err := generateRandomString(16)
+	if err != nil {
+		fmt.Printf("Error generating a subscription id: %v\n", err)
+	}
+
+	subscriptionRequest := []interface{}{
+		"REQ",
+		subscriptionID,
+		map[string]interface{}{
+			"kinds":   []int{1},
+			"authors": []string{followsPubkey},
+			"limit":   25,
+		},
+	}
+}
+
 func CreateNoteEvent(relayUrl string, newNote data.NewNote, writeChan chan<- []byte, eventChan <-chan string) {
 	event := data.NostrEvent{
 		PubKey:    newNote.PubHexKey,
@@ -153,7 +170,7 @@ func CreateNoteEvent(relayUrl string, newNote data.NewNote, writeChan chan<- []b
 	writeChan <- jsonBytes
 }
 
-func RetrieveSearchSubscription(relayUrl string, search string, writeChan chan<- []byte, eventChan <-chan string, searchTracker core.SearchTracker, uuid string, pubkey *string) {
+func RetrieveSearchSubscription(relayUrl string, search string, writeChan chan<- []byte, eventChan <-chan string, searchTracker core.SubscriptionTracker, uuid string, pubkey *string) {
 	go func() {
 		subscriptionID, err := generateRandomString(16)
 		if err != nil {
