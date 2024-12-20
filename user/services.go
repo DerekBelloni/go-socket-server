@@ -17,19 +17,19 @@ import (
 )
 
 type Service struct {
-	relayConnection *relay.RelayConnection
-	searchTracker   core.SubscriptionTracker
-	relayUrls       []string
-	pubKeyUUID      map[string]string
-	pubKeyUUIDLock  sync.RWMutex
+	relayConnection     *relay.RelayConnection
+	subscriptionTracker core.SubscriptionTracker
+	relayUrls           []string
+	pubKeyUUID          map[string]string
+	pubKeyUUIDLock      sync.RWMutex
 }
 
 func NewService(relayConnection *relay.RelayConnection, relayUrls []string, searchTracker *search.SearchTrackerImpl) *Service {
 	return &Service{
-		relayConnection: relayConnection,
-		relayUrls:       relayUrls,
-		searchTracker:   searchTracker,
-		pubKeyUUID:      make(map[string]string),
+		relayConnection:     relayConnection,
+		relayUrls:           relayUrls,
+		subscriptionTracker: searchTracker,
+		pubKeyUUID:          make(map[string]string),
 	}
 }
 
@@ -95,7 +95,7 @@ func (s *Service) followsNotes(followPubKey string) {
 func (s *Service) retrieveSearch(search string, uuid string, pubkey *string) {
 	relayUrl := "wss://relay.nostr.band/"
 	go func() {
-		s.relayConnection.RetrieveSearch(relayUrl, search, s.searchTracker, uuid, pubkey)
+		s.relayConnection.RetrieveSearch(relayUrl, search, s.subscriptionTracker, uuid, pubkey)
 	}()
 }
 

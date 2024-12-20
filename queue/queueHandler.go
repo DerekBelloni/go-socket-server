@@ -14,6 +14,11 @@ type SearchEventPubkey struct {
 	PubKey      string
 }
 
+type FollowsEvent struct {
+	FollowsEvent []interface{}
+	isFollows    bool
+}
+
 func ConsumeQueue(queueName string) (<-chan amqp091.Delivery, *amqp.Channel, *amqp.Connection, error) {
 	conn, err := amqp.Dial("amqp://guest:guest@localhost:5672/")
 	if err != nil {
@@ -104,13 +109,26 @@ func setQueue(queueName string, eventJson []byte, eventChan chan<- string) {
 	}
 }
 
-func NotesQueue(notesEvent []interface{}, eventChan chan string) {
+func NotesQueue(notesEvent []interface{}, eventChan chan string, followsPubkey string) {
 	queueName := "user_notes"
-	notesEventJSON, err := json.Marshal(notesEvent)
-	if err != nil {
-		fmt.Printf("Error marshalling notes event into JSON: %v\n", err)
+
+	if followsPubkey == "" {
+		notesEventJSON, err := json.Marshal(notesEvent)
+		if err != nil {
+			fmt.Printf("Error marshalling notes event into JSON: %v\n", err)
+		}
+		setQueue(queueName, notesEventJSON, nil)
+	} else {
+		followsEventStruct := FollowsEvent{
+			FollowsEvent: notesEvent,
+			isFollows:    true,
+		}
+		followsEventJSON, err := json.Marshal(&followsEventStruct)
+		if err != nil {
+			fmt.Printf("Error marshalling follow event into JSON")
+		}
+		setQueue(queueName, followsEventJSON, nil)
 	}
-	setQueue(queueName, notesEventJSON, nil)
 }
 
 func MetadataQueue(metadataEvent []interface{}, eventChan chan string) {

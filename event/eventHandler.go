@@ -38,7 +38,7 @@ func PrepareFollowsPubKeys(content map[string]interface{}, eventChan chan<- stri
 	return pubKeys
 }
 
-func HandleEvent(eventData []interface{}, eventChan chan string, connector core.RelayConnector, relayUrl string, searchTracker core.SubscriptionTracker) {
+func HandleEvent(eventData []interface{}, eventChan chan string, connector core.RelayConnector, relayUrl string, subscriptionTracker core.SubscriptionTracker) {
 	content, ok := eventData[2].(map[string]interface{})
 	if !ok {
 		fmt.Println("Could not extract content from event data")
@@ -54,11 +54,14 @@ func HandleEvent(eventData []interface{}, eventChan chan string, connector core.
 	case 0:
 		queue.MetadataQueue(eventData, eventChan)
 	case 1:
-		subscriptionPubkey, ok := searchTracker.InSearchEvent(eventData)
-		if !ok {
-			queue.NotesQueue(eventData, eventChan)
+		searchPubkey, ok := subscriptionTracker.InSearchEvent(eventData)
+		subscriptionPubkey, subscriptionExists := subscriptionTracker.InSubscriptionMapping(eventData)
+		if !ok && !subscriptionExists {
+			queue.NotesQueue(eventData, eventChan, "")
+		} else if !ok && subscriptionExists {
+			queue.NotesQueue(eventData, eventChan, subscriptionPubkey)
 		} else {
-			queue.SearchQueue(eventData, subscriptionPubkey, eventChan)
+			queue.SearchQueue(eventData, searchPubkey, eventChan)
 		}
 	case 3:
 		queue.FollowListQueue(eventData, eventChan)

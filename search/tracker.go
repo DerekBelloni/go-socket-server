@@ -7,6 +7,7 @@ import (
 
 type SearchTrackerImpl struct {
 	searchTrackerUUID     map[string]string
+	subscriptionTracker   map[string]string
 	searchTrackerUUIDLOCK sync.RWMutex
 }
 
@@ -35,6 +36,33 @@ func (st *SearchTrackerImpl) InSearchEvent(event []interface{}) (string, bool) {
 	}
 
 	return subscriptionPubkey, pubKeyExists
+}
+
+func (st *SearchTrackerImpl) InSubscriptionMapping(event []interface{}) (string, bool) {
+	subscriptionID, ok := event[2].(string)
+	if !ok {
+		fmt.Println("Could not extract subscription ID from event")
+	}
+
+	var pubKeyExists bool
+
+	st.searchTrackerUUIDLOCK.Lock()
+	subscriptionPubkey := st.subscriptionTracker[subscriptionID]
+	st.searchTrackerUUIDLOCK.Unlock()
+
+	if subscriptionPubkey != "" {
+		pubKeyExists = true
+	} else {
+		pubKeyExists = false
+	}
+
+	return subscriptionPubkey, pubKeyExists
+}
+
+func (st *SearchTrackerImpl) AddSubscription(subscriptionID string, userPubkey string, followsPubkey string) {
+	st.searchTrackerUUIDLOCK.Lock()
+	st.subscriptionTracker[subscriptionID] = followsPubkey
+	st.searchTrackerUUIDLOCK.Unlock()
 }
 
 func (st *SearchTrackerImpl) AddSearch(search string, uuid string, subscriptionId string, pubkey *string) {

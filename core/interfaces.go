@@ -14,6 +14,8 @@ type RelayConnector interface {
 // think I can get rid of this
 type SubscriptionTracker interface {
 	InSearchEvent(event []interface{}) (string, bool)
+	InSubscriptionMapping(event []interface{}) (string, bool)
 	AddSearch(search string, uuid string, subscriptionId string, pubkey *string)
+	AddSubscription(subscriptionID string, userPubkey string, followsPubkey string)
 	RemoveSearch(search string)
 }

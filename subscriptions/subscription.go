@@ -139,6 +139,14 @@ func FollowsNotesSubscription(relayUrl string, userPubkey string, followsPubkey 
 			"limit":   25,
 		},
 	}
+
+	subscriptionRequestJSON, err := json.Marshal(subscriptionRequest)
+	if err != nil {
+		fmt.Printf("Error marshalling subscription request: %v\n", err)
+	}
+
+	subscriptionTracker.AddSubscription(subscriptionID, userPubkey, followsPubkey)
+	writeChan <- subscriptionRequestJSON
 }
 
 func CreateNoteEvent(relayUrl string, newNote data.NewNote, writeChan chan<- []byte, eventChan <-chan string) {
@@ -170,7 +178,7 @@ func CreateNoteEvent(relayUrl string, newNote data.NewNote, writeChan chan<- []b
 	writeChan <- jsonBytes
 }
 
-func RetrieveSearchSubscription(relayUrl string, search string, writeChan chan<- []byte, eventChan <-chan string, searchTracker core.SubscriptionTracker, uuid string, pubkey *string) {
+func RetrieveSearchSubscription(relayUrl string, search string, writeChan chan<- []byte, eventChan <-chan string, subscriptionTracker core.SubscriptionTracker, uuid string, pubkey *string) {
 	go func() {
 		subscriptionID, err := generateRandomString(16)
 		if err != nil {
@@ -190,7 +198,7 @@ func RetrieveSearchSubscription(relayUrl string, search string, writeChan chan<-
 			fmt.Printf("Error marshalling subscription request: %v\n ", err)
 		}
 
-		searchTracker.AddSearch(search, uuid, subscriptionID, pubkey)
+		subscriptionTracker.AddSearch(search, uuid, subscriptionID, pubkey)
 		writeChan <- subscriptionRequestJSON
 	}()
 }
