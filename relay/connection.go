@@ -61,7 +61,7 @@ func (rc *RelayConnection) GetFollowListMetadata(relayUrl string, userHexKey str
 	subscriptions.FollowListMetadataSubscription(relayUrl, pubKeys, writeChan, eventChan)
 }
 
-func (rc *RelayConnection) GetFollowsNotes(relayUrl string, userPubkey string, followsPubkey string, subscriptionTracker core.SubscriptionTracker, uuid *string) {
+func (rc *RelayConnection) GetFollowsNotes(relayUrl string, userPubkey string, followsPubkey string, subscriptionTracker core.SubscriptionTracker) {
 	writeChan, eventChan, err := rc.GetConnection(relayUrl)
 
 	if err != nil {

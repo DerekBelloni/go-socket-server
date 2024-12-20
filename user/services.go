@@ -69,6 +69,7 @@ func (s *Service) createNote(note data.NewNote) {
 	}
 }
 
+// use the relays on the interface
 func (s *Service) followList(relayUrls []string, userHexKey string, followsFinished chan<- string) {
 	for _, relayUrl := range relayUrls {
 		go func(relayUrl string) {
@@ -88,8 +89,12 @@ func (s *Service) followsMetadata(userHexKey string) {
 	}
 }
 
-func (s *Service) followsNotes(followPubKey string) {
-
+func (s *Service) followsNotes(userPubKey string, followPubKey string) {
+	for _, relayUrl := range s.relayUrls {
+		go func(relayUrl string) {
+			s.relayConnection.GetFollowsNotes(relayUrl, userPubKey, followPubKey, s.subscriptionTracker)
+		}(relayUrl)
+	}
 }
 
 func (s *Service) retrieveSearch(search string, uuid string, pubkey *string) {
@@ -353,6 +358,7 @@ func (s *Service) StartFollowsNotesQueue() {
 
 				fmt.Printf("user pubkey: %v\n, follows pubkey: %v\n", userPubkey, followPubkey)
 
+				s.followsNotes(userPubkey, followPubkey)
 			}
 		}
 	}()

@@ -119,6 +119,7 @@ func NotesQueue(notesEvent []interface{}, eventChan chan string, followsPubkey s
 		}
 		setQueue(queueName, notesEventJSON, nil)
 	} else {
+		fmt.Println("in follows key if block")
 		followsEventStruct := FollowsEvent{
 			FollowsEvent: notesEvent,
 			isFollows:    true,
