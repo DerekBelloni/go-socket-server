@@ -9,6 +9,16 @@ import (
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
+type NostrEvent interface {
+	EventType() string
+}
+
+type EventMessage struct {
+	Event      NostrEvent
+	UserPubkey *string
+	UUID       *string
+}
+
 type SearchEventPubkey struct {
 	SearchEvent []interface{}
 	PubKey      string
@@ -16,7 +26,9 @@ type SearchEventPubkey struct {
 
 type FollowsEvent struct {
 	FollowsEvent []interface{}
-	isFollows    bool
+	UserPubkey   *string
+	UUID         *string
+	Type         string
 }
 
 func ConsumeQueue(queueName string) (<-chan amqp091.Delivery, *amqp.Channel, *amqp.Connection, error) {
@@ -119,10 +131,8 @@ func NotesQueue(notesEvent []interface{}, eventChan chan string, followsPubkey s
 		}
 		setQueue(queueName, notesEventJSON, nil)
 	} else {
-		fmt.Println("in follows key if block")
 		followsEventStruct := FollowsEvent{
 			FollowsEvent: notesEvent,
-			isFollows:    true,
 		}
 		followsEventJSON, err := json.Marshal(&followsEventStruct)
 		if err != nil {

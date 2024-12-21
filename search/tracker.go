@@ -13,7 +13,8 @@ type SearchTrackerImpl struct {
 
 func NewSearchTrackerImpl() *SearchTrackerImpl {
 	return &SearchTrackerImpl{
-		searchTrackerUUID: make(map[string]string),
+		searchTrackerUUID:   make(map[string]string),
+		subscriptionTracker: make(map[string]string),
 	}
 }
 
@@ -39,7 +40,7 @@ func (st *SearchTrackerImpl) InSearchEvent(event []interface{}) (string, bool) {
 }
 
 func (st *SearchTrackerImpl) InSubscriptionMapping(event []interface{}) (string, bool) {
-	subscriptionID, ok := event[2].(string)
+	subscriptionID, ok := event[1].(string)
 	if !ok {
 		fmt.Println("Could not extract subscription ID from event")
 	}
@@ -61,7 +62,7 @@ func (st *SearchTrackerImpl) InSubscriptionMapping(event []interface{}) (string,
 
 func (st *SearchTrackerImpl) AddSubscription(subscriptionID string, userPubkey string, followsPubkey string) {
 	st.searchTrackerUUIDLOCK.Lock()
-	st.subscriptionTracker[subscriptionID] = followsPubkey
+	st.subscriptionTracker[subscriptionID] = userPubkey
 	st.searchTrackerUUIDLOCK.Unlock()
 }
 
