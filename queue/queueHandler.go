@@ -5,19 +5,20 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/DerekBelloni/go-socket-server/data"
 	"github.com/rabbitmq/amqp091-go"
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
-type NostrEvent interface {
-	EventType() string
-}
+// type NostrEvent interface {
+// 	EventType() string
+// }
 
-type EventMessage struct {
-	Event      NostrEvent
-	UserPubkey *string
-	UUID       *string
-}
+// type EventMessage struct {
+// 	Event      NostrEvent
+// 	UserPubkey *string
+// 	UUID       *string
+// }
 
 type SearchEventPubkey struct {
 	SearchEvent []interface{}
@@ -140,6 +141,11 @@ func NotesQueue(notesEvent []interface{}, eventChan chan string, followsPubkey s
 		}
 		setQueue(queueName, followsEventJSON, nil)
 	}
+}
+
+// This using the new NostrEvent which is alreadu packaged
+func NewNotesQueue(event data.EventMessage) {
+
 }
 
 func MetadataQueue(metadataEvent []interface{}, eventChan chan string) {

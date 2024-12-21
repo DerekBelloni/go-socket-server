@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/DerekBelloni/go-socket-server/core"
+	"github.com/DerekBelloni/go-socket-server/data"
 	"github.com/DerekBelloni/go-socket-server/queue"
 )
 
@@ -38,6 +39,23 @@ func PrepareFollowsPubKeys(content map[string]interface{}, eventChan chan<- stri
 	return pubKeys
 }
 
+func PackageEvent(eventData []interface{}, userPubkey string, eventType string, uuid string) data.EventMessage {
+	message := data.EventMessage{
+		UserPubkey: &userPubkey,
+		UUID:       &uuid,
+	}
+
+	if userPubkey != "" {
+		if eventType == "follows" {
+			message.Event = data.FollowsEvent{
+				Event: eventData,
+			}
+		}
+	}
+
+	return message
+}
+
 func HandleEvent(eventData []interface{}, eventChan chan string, connector core.RelayConnector, relayUrl string, subscriptionTracker core.SubscriptionTracker) {
 	content, ok := eventData[2].(map[string]interface{})
 	if !ok {
@@ -55,11 +73,15 @@ func HandleEvent(eventData []interface{}, eventChan chan string, connector core.
 		queue.MetadataQueue(eventData, eventChan)
 	case 1:
 		searchPubkey, ok := subscriptionTracker.InSearchEvent(eventData)
+		// this is only for follower notes at the moment
 		subscriptionPubkey, subscriptionExists := subscriptionTracker.InSubscriptionMapping(eventData)
 		if !ok && !subscriptionExists {
 			queue.NotesQueue(eventData, eventChan, "")
 		} else if !ok && subscriptionExists {
-			queue.NotesQueue(eventData, eventChan, subscriptionPubkey)
+			eventMessage := PackageEvent(eventData, subscriptionPubkey, "follows", "")
+			fmt.Printf("Event message: %v\n", eventMessage)
+			queue.NewNotesQueue(eventMessage)
+			// queue.NotesQueue(eventData, eventChan, subscriptionPubkey)
 		} else {
 			queue.SearchQueue(eventData, searchPubkey, eventChan)
 		}
