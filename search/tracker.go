@@ -24,19 +24,19 @@ func (st *SearchTrackerImpl) InSearchEvent(event []interface{}) (string, bool) {
 		fmt.Println("Could not extract subscription ID from event")
 	}
 
-	var pubKeyExists bool
+	var searchKeyExists bool
 
 	st.searchTrackerUUIDLOCK.Lock()
-	subscriptionPubkey := st.searchTrackerUUID[subscriptionID]
+	searchKey := st.searchTrackerUUID[subscriptionID]
 	st.searchTrackerUUIDLOCK.Unlock()
 
-	if subscriptionPubkey != "" {
-		pubKeyExists = true
+	if searchKey != "" {
+		searchKeyExists = true
 	} else {
-		pubKeyExists = false
+		searchKeyExists = false
 	}
 
-	return subscriptionPubkey, pubKeyExists
+	return searchKey, searchKeyExists
 }
 
 func (st *SearchTrackerImpl) InSubscriptionMapping(event []interface{}) (string, bool) {
@@ -61,10 +61,10 @@ func (st *SearchTrackerImpl) InSubscriptionMapping(event []interface{}) (string,
 }
 
 func (st *SearchTrackerImpl) AddSubscription(subscriptionID string, userPubkey string, followsPubkey string, uuid string) {
-	fmt.Printf("pubkey: %v\n, uuid: %v\n", userPubkey, uuid)
+
 	if userPubkey == "" {
 		st.searchTrackerUUIDLOCK.Lock()
-		st.subscriptionTracker[subscriptionID] = userPubkey
+		st.subscriptionTracker[subscriptionID] = uuid
 		st.searchTrackerUUIDLOCK.Unlock()
 	} else {
 		st.searchTrackerUUIDLOCK.Lock()

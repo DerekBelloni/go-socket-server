@@ -44,9 +44,6 @@ func (s *Service) checkAndUpdateUUID(userHexKey *string, uuid string, search str
 	s.pubKeyUUIDLock.Lock()
 	defer s.pubKeyUUIDLock.Unlock()
 
-	// var existingUUID string
-	// var exists bool
-
 	var key string
 	if userHexKey != nil && *userHexKey != "" {
 		key = *userHexKey
@@ -58,16 +55,6 @@ func (s *Service) checkAndUpdateUUID(userHexKey *string, uuid string, search str
 	if exists && existingUUID == uuid {
 		return false
 	}
-
-	// if userHexKey != "" {
-	// 	existingUUID, exists = s.pubKeyUUID[userHexKey]
-	// } else {
-	// 	existingUUID, exists = s.pubKeyUUID[search]
-	// }
-
-	// if exists && existingUUID == uuid {
-	// 	return false
-	// }
 
 	s.pubKeyUUID[key] = uuid
 	return true

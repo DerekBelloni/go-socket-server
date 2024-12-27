@@ -72,16 +72,17 @@ func HandleEvent(eventData []interface{}, eventChan chan string, connector core.
 	case 0:
 		queue.MetadataQueue(eventData, eventChan)
 	case 1:
-		searchPubkey, ok := subscriptionTracker.InSearchEvent(eventData)
+		searchKey, searchKeyExists := subscriptionTracker.InSearchEvent(eventData)
 		// this is only for follower notes at the moment
 		subscriptionPubkey, subscriptionExists := subscriptionTracker.InSubscriptionMapping(eventData)
-		if !ok && !subscriptionExists {
+
+		if !searchKeyExists && !subscriptionExists {
 			queue.NotesQueue(eventData, eventChan, "")
-		} else if !ok && subscriptionExists {
+		} else if !searchKeyExists && subscriptionExists {
 			eventMessage := PackageEvent(eventData, subscriptionPubkey, "follows", "")
 			queue.NewNotesQueue(eventMessage, eventChan)
 		} else {
-			queue.SearchQueue(eventData, searchPubkey, eventChan)
+			queue.SearchQueue(eventData, searchKey, eventChan)
 		}
 	case 3:
 		queue.FollowListQueue(eventData, eventChan)

@@ -163,11 +163,11 @@ func FollowListQueue(followListEvent []interface{}, eventChan chan string) {
 	setQueue(queueName, followListEventJSON, eventChan)
 }
 
-func SearchQueue(searchEvent []interface{}, subsriptionPubkey string, eventChan chan string) {
+func SearchQueue(searchEvent []interface{}, searchKey string, eventChan chan string) {
 	queueName := "search_results"
 	searchResultStruct := SearchEventPubkey{
 		SearchEvent: searchEvent,
-		PubKey:      subsriptionPubkey,
+		PubKey:      searchKey,
 	}
 	searchResultStructJson, err := json.Marshal(searchResultStruct)
 	if err != nil {
