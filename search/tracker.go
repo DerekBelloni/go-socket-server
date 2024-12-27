@@ -61,9 +61,16 @@ func (st *SearchTrackerImpl) InSubscriptionMapping(event []interface{}) (string,
 }
 
 func (st *SearchTrackerImpl) AddSubscription(subscriptionID string, userPubkey string, followsPubkey string, uuid string) {
-	st.searchTrackerUUIDLOCK.Lock()
-	st.subscriptionTracker[subscriptionID] = userPubkey
-	st.searchTrackerUUIDLOCK.Unlock()
+	fmt.Printf("pubkey: %v\n, uuid: %v\n", userPubkey, uuid)
+	if userPubkey == "" {
+		st.searchTrackerUUIDLOCK.Lock()
+		st.subscriptionTracker[subscriptionID] = userPubkey
+		st.searchTrackerUUIDLOCK.Unlock()
+	} else {
+		st.searchTrackerUUIDLOCK.Lock()
+		st.subscriptionTracker[subscriptionID] = userPubkey
+		st.searchTrackerUUIDLOCK.Unlock()
+	}
 }
 
 func (st *SearchTrackerImpl) AddSearch(search string, uuid string, subscriptionId string, pubkey *string) {
