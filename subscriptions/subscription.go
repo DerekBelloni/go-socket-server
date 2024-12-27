@@ -124,7 +124,7 @@ func FollowListMetadataSubscription(relayUrl string, pubKeys []string, writeChan
 	}
 }
 
-func FollowsNotesSubscription(relayUrl string, userPubkey string, followsPubkey string, subscriptionTracker core.SubscriptionTracker, writeChan chan<- []byte, eventChan <-chan string) {
+func FollowsNotesSubscription(relayUrl string, userPubkey string, followsPubkey string, subscriptionTracker core.SubscriptionTracker, writeChan chan<- []byte, eventChan <-chan string, uuid string) {
 	subscriptionID, err := generateRandomString(16)
 	if err != nil {
 		fmt.Printf("Error generating a subscription id: %v\n", err)
@@ -145,7 +145,7 @@ func FollowsNotesSubscription(relayUrl string, userPubkey string, followsPubkey 
 		fmt.Printf("Error marshalling subscription request: %v\n", err)
 	}
 
-	subscriptionTracker.AddSubscription(subscriptionID, userPubkey, followsPubkey)
+	subscriptionTracker.AddSubscription(subscriptionID, userPubkey, followsPubkey, uuid)
 	writeChan <- subscriptionRequestJSON
 }
 

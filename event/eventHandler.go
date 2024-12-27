@@ -44,11 +44,11 @@ func PackageEvent(eventData []interface{}, userPubkey string, eventType string, 
 		UserPubkey: &userPubkey,
 		UUID:       &uuid,
 	}
-
+	fmt.Printf("uuid in package event: %v\n", uuid)
 	if userPubkey != "" {
 		if eventType == "follows" {
 			message.Event = data.FollowsEvent{
-				Event: eventData,
+				Data: eventData,
 			}
 		}
 	}
@@ -79,9 +79,7 @@ func HandleEvent(eventData []interface{}, eventChan chan string, connector core.
 			queue.NotesQueue(eventData, eventChan, "")
 		} else if !ok && subscriptionExists {
 			eventMessage := PackageEvent(eventData, subscriptionPubkey, "follows", "")
-			fmt.Printf("Event message: %v\n", eventMessage)
-			queue.NewNotesQueue(eventMessage)
-			// queue.NotesQueue(eventData, eventChan, subscriptionPubkey)
+			queue.NewNotesQueue(eventMessage, eventChan)
 		} else {
 			queue.SearchQueue(eventData, searchPubkey, eventChan)
 		}

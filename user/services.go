@@ -89,10 +89,10 @@ func (s *Service) followsMetadata(userHexKey string) {
 	}
 }
 
-func (s *Service) followsNotes(userPubKey string, followPubKey string) {
+func (s *Service) followsNotes(userPubKey string, followPubKey string, uuid string) {
 	for _, relayUrl := range s.relayUrls {
 		go func(relayUrl string) {
-			s.relayConnection.GetFollowsNotes(relayUrl, userPubKey, followPubKey, s.subscriptionTracker)
+			s.relayConnection.GetFollowsNotes(relayUrl, userPubKey, followPubKey, s.subscriptionTracker, uuid)
 		}(relayUrl)
 	}
 }
@@ -358,7 +358,7 @@ func (s *Service) StartFollowsNotesQueue() {
 
 				fmt.Printf("user pubkey: %v\n, follows pubkey: %v\n", userPubkey, followPubkey)
 
-				s.followsNotes(userPubkey, followPubkey)
+				s.followsNotes(userPubkey, followPubkey, uuid)
 			}
 		}
 	}()

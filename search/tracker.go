@@ -60,7 +60,7 @@ func (st *SearchTrackerImpl) InSubscriptionMapping(event []interface{}) (string,
 	return subscriptionPubkey, pubKeyExists
 }
 
-func (st *SearchTrackerImpl) AddSubscription(subscriptionID string, userPubkey string, followsPubkey string) {
+func (st *SearchTrackerImpl) AddSubscription(subscriptionID string, userPubkey string, followsPubkey string, uuid string) {
 	st.searchTrackerUUIDLOCK.Lock()
 	st.subscriptionTracker[subscriptionID] = userPubkey
 	st.searchTrackerUUIDLOCK.Unlock()

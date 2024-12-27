@@ -16,6 +16,6 @@ type SubscriptionTracker interface {
 	InSearchEvent(event []interface{}) (string, bool)
 	InSubscriptionMapping(event []interface{}) (string, bool)
 	AddSearch(search string, uuid string, subscriptionId string, pubkey *string)
-	AddSubscription(subscriptionID string, userPubkey string, followsPubkey string)
+	AddSubscription(subscriptionID string, userPubkey string, followsPubkey string, uuid string)
 	RemoveSearch(search string)
 }

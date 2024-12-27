@@ -10,16 +10,6 @@ import (
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
-// type NostrEvent interface {
-// 	EventType() string
-// }
-
-// type EventMessage struct {
-// 	Event      NostrEvent
-// 	UserPubkey *string
-// 	UUID       *string
-// }
-
 type SearchEventPubkey struct {
 	SearchEvent []interface{}
 	PubKey      string
@@ -144,8 +134,14 @@ func NotesQueue(notesEvent []interface{}, eventChan chan string, followsPubkey s
 }
 
 // This using the new NostrEvent which is alreadu packaged
-func NewNotesQueue(event data.EventMessage) {
+func NewNotesQueue(event data.EventMessage, eventChan chan string) {
+	queueName := "user_notes"
 
+	notesEventJson, err := json.Marshal(event)
+	if err != nil {
+		fmt.Printf("Error marshalling notes event into JSON: %v\n", err)
+	}
+	setQueue(queueName, notesEventJson, eventChan)
 }
 
 func MetadataQueue(metadataEvent []interface{}, eventChan chan string) {
