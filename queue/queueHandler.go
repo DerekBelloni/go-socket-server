@@ -12,7 +12,7 @@ import (
 
 type SearchEventPubkey struct {
 	SearchEvent []interface{}
-	PubKey      string
+	SearchKey   string
 }
 
 type FollowsEvent struct {
@@ -167,7 +167,7 @@ func SearchQueue(searchEvent []interface{}, searchKey string, eventChan chan str
 	queueName := "search_results"
 	searchResultStruct := SearchEventPubkey{
 		SearchEvent: searchEvent,
-		PubKey:      searchKey,
+		SearchKey:   searchKey,
 	}
 	searchResultStructJson, err := json.Marshal(searchResultStruct)
 	if err != nil {
