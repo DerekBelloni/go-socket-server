@@ -71,6 +71,16 @@ func (rc *RelayConnection) GetFollowsNotes(relayUrl string, userPubkey string, f
 	subscriptions.FollowsNotesSubscription(relayUrl, userPubkey, followsPubkey, subscriptionTracker, writeChan, eventChan, uuid)
 }
 
+func (rc *RelayConnection) GetSearchedAuthorMetadata(relayUrl string, authorPubkey string, userPubkey string, uuid string) {
+	writeChan, eventChan, err := rc.GetConnection(relayUrl)
+
+	if err != nil {
+		fmt.Printf("Dial error: %v\n", err)
+	}
+
+	subscriptions.SearchedAuthorMetadata(relayUrl, authorPubkey, writeChan, eventChan)
+}
+
 func (rc *RelayConnection) SendNoteToRelay(relayUrl string, newNote data.NewNote) {
 	writeChan, eventChan, err := rc.GetConnection(relayUrl)
 	if err != nil {
