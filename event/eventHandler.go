@@ -87,7 +87,12 @@ func HandleEvent(eventData []interface{}, eventChan chan string, connector core.
 
 	switch kind {
 	case 0:
-		queue.MetadataQueue(eventData, eventChan)
+		searchKey, searchKeyExists := subscriptionTracker.InSearchEvent(eventData)
+		if !searchKeyExists {
+			queue.MetadataQueue(eventData, eventChan)
+		} else {
+			queue.AuthorMetadataQueue(eventData, searchKey)
+		}
 	case 1:
 		searchKey, searchKeyExists := subscriptionTracker.InSearchEvent(eventData)
 		// this is only for follower notes at the moment
@@ -102,7 +107,7 @@ func HandleEvent(eventData []interface{}, eventChan chan string, connector core.
 			authorPubkey := ExtractAuthorsPubkey(content)
 			for _, relayUrl := range callbackRelays {
 				go func(relayUrl string) {
-					connector.GetSearchedAuthorMetadata(relayUrl, authorPubkey, searchKey)
+					connector.GetSearchedAuthorMetadata(relayUrl, authorPubkey, searchKey, subscriptionTracker)
 				}(relayUrl)
 			}
 			queue.SearchQueue(eventData, searchKey, eventChan)

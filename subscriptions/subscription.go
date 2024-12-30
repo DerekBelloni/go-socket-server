@@ -26,15 +26,6 @@ func generateRandomString(length int) (string, error) {
 	return hex.EncodeToString(bytes), nil
 }
 
-func isHexPubkey(key string) bool {
-	if len(key) != 64 {
-		return false
-	}
-
-	// _, err := strconv.ParseUint()
-	return false
-}
-
 func MetadataSubscription(relayUrl string, userHexKey string, writeChan chan<- []byte, eventChan <-chan string, metadataSet chan<- string) {
 	subscriptionID, err := generateRandomString(16)
 	if err != nil {
@@ -212,17 +203,35 @@ func RetrieveSearchSubscription(relayUrl string, search string, writeChan chan<-
 	}()
 }
 
-func SearchedAuthorMetadata(relayUrl string, authorPubkey string, searchKey string, writeChan chan<- []byte, eventChan <-chan string) {
-	// fmt.Printf("relayUrl: %v,\nauthorPubkey: %v,\nsearchKey: %v\n\n\n", relayUrl, authorPubkey, searchKey)
-	fmt.Printf("length: %v\n", len(authorPubkey))
+func SearchedAuthorMetadata(relayUrl string, authorPubkey string, searchKey string, subscriptionTracker core.SubscriptionTracker, writeChan chan<- []byte, eventChan <-chan string) {
 	var uuid string
 	var userPubkey string
-	_, err := hex.DecodeString(authorPubkey)
-	if err != nil {
-		uuid = searchKey
-		userPubkey = ""
-	} else {
-		uuid = ""
+
+	if _, err := hex.DecodeString(searchKey); err == nil {
 		userPubkey = searchKey
+	} else {
+		uuid = searchKey
 	}
+
+	subscriptionID, err := generateRandomString(16)
+	if err != nil {
+		fmt.Printf("Error generating a subscription id: %v\n", err)
+	}
+
+	subscriptionRequest := []interface{}{
+		"REQ",
+		subscriptionID,
+		map[string]interface{}{
+			"kind":    0,
+			"authors": []string{authorPubkey},
+		},
+	}
+
+	subscriptionRequestJSON, err := json.Marshal(subscriptionRequest)
+	if err != nil {
+		fmt.Printf("Error marshalling subscription request: %v\n", err)
+	}
+
+	subscriptionTracker.AddSearch("", uuid, "", &userPubkey)
+	writeChan <- subscriptionRequestJSON
 }

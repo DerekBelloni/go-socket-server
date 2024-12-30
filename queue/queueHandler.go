@@ -175,3 +175,8 @@ func SearchQueue(searchEvent []interface{}, searchKey string, eventChan chan str
 	}
 	setQueue(queueName, searchResultStructJson, eventChan)
 }
+
+func AuthorMetadataQueue(metadataEvent []interface{}, searchKey string) {
+	queueName := "author_metadata"
+	fmt.Printf("queueName: %v\n", queueName)
+}

@@ -8,7 +8,8 @@ type RelayConnector interface {
 	GetUserNotes(relayUrl string, userHexKey string, notesFinished chan<- string)
 	GetFollowList(relayUrl string, userHexKey string, followsFinished chan<- string)
 	GetFollowListMetadata(relayUrl string, userHexKey string, pubKeys []string)
-	GetSearchedAuthorMetadata(relayUrl string, authorPubKey string, searchKey string)
+	GetSearchedAuthorMetadata(relayUrl string, authorPubKey string, searchKey string, subscriptionTracker SubscriptionTracker)
+	RetrieveSearch(relayUrl string, search string, subscriptionTracker SubscriptionTracker, uuid string, pubkey *string)
 	SendNoteToRelay(relayUrl string, newNote data.NewNote)
 }
 
