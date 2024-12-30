@@ -8,6 +8,12 @@ import (
 	"github.com/DerekBelloni/go-socket-server/queue"
 )
 
+var callbackRelays = []string{
+	"wss://relay.damus.io",
+	"wss://relay.primal.net",
+	"wss://relay.nostr.band",
+}
+
 func ExtractPubKey(tag interface{}) (string, bool) {
 	tagSlice, ok := tag.([]interface{})
 	if !ok || len(tagSlice) < 2 {
@@ -22,6 +28,7 @@ func ExtractPubKey(tag interface{}) (string, bool) {
 	return pubKey, true
 }
 
+// this is not being used
 func PrepareFollowsPubKeys(content map[string]interface{}, eventChan chan<- string) []string {
 	tags, ok := content["tags"].([]interface{})
 	if !ok {
@@ -37,6 +44,16 @@ func PrepareFollowsPubKeys(content map[string]interface{}, eventChan chan<- stri
 		pubKeys = append(pubKeys, pubKey)
 	}
 	return pubKeys
+}
+
+func ExtractAuthorsPubkey(content map[string]interface{}) string {
+	pubkey, ok := content["pubkey"].(string)
+
+	if !ok {
+		return ""
+	}
+
+	return pubkey
 }
 
 func PackageEvent(eventData []interface{}, userPubkey string, eventType string, uuid string) data.EventMessage {
@@ -82,6 +99,12 @@ func HandleEvent(eventData []interface{}, eventChan chan string, connector core.
 			eventMessage := PackageEvent(eventData, subscriptionPubkey, "follows", "")
 			queue.NewNotesQueue(eventMessage, eventChan)
 		} else {
+			authorPubkey := ExtractAuthorsPubkey(content)
+			for _, relayUrl := range callbackRelays {
+				go func(relayUrl string) {
+					connector.GetSearchedAuthorMetadata(relayUrl, authorPubkey, searchKey)
+				}(relayUrl)
+			}
 			queue.SearchQueue(eventData, searchKey, eventChan)
 		}
 	case 3:

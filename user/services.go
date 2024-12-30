@@ -103,13 +103,13 @@ func (s *Service) retrieveSearch(search string, uuid string, pubkey *string) {
 	}()
 }
 
-func (s *Service) retrieveAuthorMetadata(authorPubkey string, userPubkey string, uuid string) {
-	for _, relayUrl := range s.relayUrls {
-		go func(relayUrl string) {
-			s.relayConnection.GetSearchedAuthorMetadata(relayUrl, authorPubkey, userPubkey, uuid)
-		}(relayUrl)
-	}
-}
+// func (s *Service) retrieveAuthorMetadata(authorPubkey string, userPubkey string, uuid string) {
+// 	for _, relayUrl := range s.relayUrls {
+// 		go func(relayUrl string) {
+// 			s.relayConnection.GetSearchedAuthorMetadata(relayUrl, authorPubkey, userPubkey, uuid)
+// 		}(relayUrl)
+// 	}
+// }
 
 func (s *Service) userNotes(relayUrls []string, userHexKey string, notesFinished chan<- string) {
 	for _, relayUrl := range relayUrls {
@@ -373,39 +373,39 @@ func (s *Service) StartFollowsNotesQueue() {
 	<-forever
 }
 
-func (s *Service) StartAuthorsMetadataQueue() {
-	forever := make(chan struct{})
+// func (s *Service) StartAuthorsMetadataQueue() {
+// 	forever := make(chan struct{})
 
-	queueName := "author_metadata"
+// 	queueName := "author_metadata"
 
-	msgs, channel, conn, err := queue.ConsumeQueue(queueName)
-	if err != nil {
-		fmt.Printf("Error consuming message from the %v queue, %v\n", queueName, err)
-	}
+// 	msgs, channel, conn, err := queue.ConsumeQueue(queueName)
+// 	if err != nil {
+// 		fmt.Printf("Error consuming message from the %v queue, %v\n", queueName, err)
+// 	}
 
-	defer conn.Close()
-	defer channel.Close()
+// 	defer conn.Close()
+// 	defer channel.Close()
 
-	go func() {
-		for {
-			for d := range msgs {
-				searchUUID := string(d.Body)
-				parts := strings.Split(searchUUID, ":")
-				if len(parts) != 3 {
-					continue
-				}
+// 	go func() {
+// 		for {
+// 			for d := range msgs {
+// 				searchUUID := string(d.Body)
+// 				parts := strings.Split(searchUUID, ":")
+// 				if len(parts) != 3 {
+// 					continue
+// 				}
 
-				userPubkey := parts[0]
-				authorPubkey := parts[0]
-				uuid := parts[1]
+// 				userPubkey := parts[0]
+// 				authorPubkey := parts[0]
+// 				uuid := parts[1]
 
-				if !s.checkAndUpdateUUID(&authorPubkey, uuid, "") {
-					continue
-				}
+// 				if !s.checkAndUpdateUUID(&authorPubkey, uuid, "") {
+// 					continue
+// 				}
 
-				s.retrieveAuthorMetadata(authorPubkey, userPubkey, uuid)
-			}
-		}
-	}()
-	<-forever
-}
+// 				s.retrieveAuthorMetadata(authorPubkey, userPubkey, uuid)
+// 			}
+// 		}
+// 	}()
+// 	<-forever
+// }

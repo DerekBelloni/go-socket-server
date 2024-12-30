@@ -203,6 +203,6 @@ func RetrieveSearchSubscription(relayUrl string, search string, writeChan chan<-
 	}()
 }
 
-func SearchedAuthorMetadata(relayUrl string, authorPubkey string, writeChan chan<- []byte, eventChan <-chan string) {
+func SearchedAuthorMetadata(relayUrl string, authorPubkey string, searchKey string, writeChan chan<- []byte, eventChan <-chan string) {
 
 }
