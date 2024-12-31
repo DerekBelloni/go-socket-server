@@ -47,12 +47,12 @@ func (rm *RelayManager) GetConnection(relayUrl string) (chan []byte, chan string
 	rm.mutex.Lock()
 	defer rm.mutex.Unlock()
 
-	conn, writeChan, readChan, eventChan, err := rm.getExistingConnection(relayUrl)
+	_, writeChan, _, eventChan, err := rm.getExistingConnection(relayUrl)
 
 	if err == nil && rm.isConnected(relayUrl) {
-		go rm.writeLoop(conn, relayUrl, writeChan)
-		go rm.readLoop(conn, relayUrl, readChan)
-		go rm.processReadChannel(readChan, relayUrl, eventChan)
+		// go rm.writeLoop(conn, relayUrl, writeChan)
+		// go rm.readLoop(conn, relayUrl, readChan)
+		// go rm.processReadChannel(readChan, relayUrl, eventChan)
 		return writeChan, eventChan, nil
 	}
 
@@ -181,9 +181,7 @@ func (rm *RelayManager) readLoop(conn *websocket.Conn, relayUrl string, readChan
 			}
 			select {
 			case readChan <- message:
-				// fmt.Printf("[READ] %s: Message queued, buffer size: %d/100\n", relayUrl, len(readChan))
 			default:
-				// Log enough to identify what we're dropping
 				var msg []interface{}
 				_ = json.Unmarshal(message, &msg)
 				fmt.Printf("[DROP] %s: Dropped message type: %v, buffer size: %d/100\n",
@@ -204,7 +202,7 @@ func (rm *RelayManager) processReadChannel(readChan <-chan []byte, relayUrl stri
 			log.Printf("Error unmarshalling relay message: %v\n", err)
 			continue
 		}
-
+		// fmt.Printf("relay message: %v\n\n\n", relayMessage)
 		rm.processMessage(relayMessage, relayUrl, eventChan)
 	}
 }
@@ -236,6 +234,7 @@ func (rm *RelayManager) writeLoop(conn *websocket.Conn, relayUrl string, writeCh
 			rm.mutex.Unlock()
 			if err != nil {
 				fmt.Printf("Error sending subscription request to relay: %v\n", err)
+				rm.CloseConnection(relayUrl)
 				break
 			}
 		}
@@ -258,5 +257,5 @@ func (rm *RelayManager) isConnected(relayUrl string) bool {
 		return false
 	}
 
-	return conn.UnderlyingConn() == nil
+	return conn.UnderlyingConn() != nil
 }

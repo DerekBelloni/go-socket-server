@@ -206,7 +206,6 @@ func RetrieveSearchSubscription(relayUrl string, search string, writeChan chan<-
 func SearchedAuthorMetadata(relayUrl string, authorPubkey string, searchKey string, subscriptionTracker core.SubscriptionTracker, writeChan chan<- []byte, eventChan <-chan string) {
 	var uuid string
 	var userPubkey string
-
 	if _, err := hex.DecodeString(searchKey); err == nil {
 		userPubkey = searchKey
 	} else {
@@ -214,6 +213,7 @@ func SearchedAuthorMetadata(relayUrl string, authorPubkey string, searchKey stri
 	}
 
 	subscriptionID, err := generateRandomString(16)
+	fmt.Printf("SEARCH KEY IN SUBSCRIPTION: %v\n\n\n,SUBSCRIPTIONID IN SUBSCRIPTION: %v\n\n\n", uuid, subscriptionID)
 	if err != nil {
 		fmt.Printf("Error generating a subscription id: %v\n", err)
 	}
@@ -222,7 +222,7 @@ func SearchedAuthorMetadata(relayUrl string, authorPubkey string, searchKey stri
 		"REQ",
 		subscriptionID,
 		map[string]interface{}{
-			"kind":    0,
+			"kinds":   []int{0},
 			"authors": []string{authorPubkey},
 		},
 	}
@@ -231,7 +231,8 @@ func SearchedAuthorMetadata(relayUrl string, authorPubkey string, searchKey stri
 	if err != nil {
 		fmt.Printf("Error marshalling subscription request: %v\n", err)
 	}
+	// fmt.Printf("AUTHOR METADATA!!!!: %v\n\n\n\n", userPubkey)
 
-	subscriptionTracker.AddSearch("", uuid, "", &userPubkey)
+	subscriptionTracker.AddSearch("", uuid, subscriptionID, &userPubkey)
 	writeChan <- subscriptionRequestJSON
 }

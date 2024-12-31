@@ -107,7 +107,6 @@ func setQueue(queueName string, eventJson []byte, eventChan chan<- string) {
 	if err != nil {
 		fmt.Printf("Error publishing relay event to queue: %v\n", err)
 	} else {
-		fmt.Println("Event published to RabbitMQ")
 		cancel()
 	}
 }

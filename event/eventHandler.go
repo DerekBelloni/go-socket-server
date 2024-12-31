@@ -89,8 +89,10 @@ func HandleEvent(eventData []interface{}, eventChan chan string, connector core.
 	case 0:
 		searchKey, searchKeyExists := subscriptionTracker.InSearchEvent(eventData)
 		if !searchKeyExists {
+			// fmt.Printf("kind 0 event data: %v\n", eventData)
 			queue.MetadataQueue(eventData, eventChan)
 		} else {
+			fmt.Printf("author metadata, event handler: %v\n", eventData)
 			queue.AuthorMetadataQueue(eventData, searchKey)
 		}
 	case 1:

@@ -74,14 +74,15 @@ func (st *SearchTrackerImpl) AddSubscription(subscriptionID string, userPubkey s
 }
 
 func (st *SearchTrackerImpl) AddSearch(search string, uuid string, subscriptionId string, pubkey *string) {
+	st.searchTrackerUUIDLOCK.Lock()
+	defer st.searchTrackerUUIDLOCK.Unlock()
+
 	if pubkey == nil {
-		st.searchTrackerUUIDLOCK.Lock()
+		fmt.Printf("UUID IN ADD SEARCH!!!: %v\n", uuid)
 		st.searchTrackerUUID[subscriptionId] = uuid
-		st.searchTrackerUUIDLOCK.Unlock()
-	} else {
-		st.searchTrackerUUIDLOCK.Lock()
+	} else if *pubkey != "" {
+		fmt.Printf("In add search, uuid: %v\n\n pubkey: %v\n\n", uuid, pubkey)
 		st.searchTrackerUUID[subscriptionId] = *pubkey
-		st.searchTrackerUUIDLOCK.Unlock()
 	}
 }
 

@@ -51,6 +51,7 @@ func (s *Service) checkAndUpdateUUID(userHexKey *string, uuid string, search str
 		key = search
 	}
 
+	// this needs to be updated because if a logged in user does multiple searches it will return false because it will match on their pubkey
 	existingUUID, exists := s.pubKeyUUID[key]
 	if exists && existingUUID == uuid {
 		return false
@@ -102,14 +103,6 @@ func (s *Service) retrieveSearch(search string, uuid string, pubkey *string) {
 		s.relayConnection.RetrieveSearch(relayUrl, search, s.subscriptionTracker, uuid, pubkey)
 	}()
 }
-
-// func (s *Service) retrieveAuthorMetadata(authorPubkey string, userPubkey string, uuid string) {
-// 	for _, relayUrl := range s.relayUrls {
-// 		go func(relayUrl string) {
-// 			s.relayConnection.GetSearchedAuthorMetadata(relayUrl, authorPubkey, userPubkey, uuid)
-// 		}(relayUrl)
-// 	}
-// }
 
 func (s *Service) userNotes(relayUrls []string, userHexKey string, notesFinished chan<- string) {
 	for _, relayUrl := range relayUrls {
@@ -313,7 +306,6 @@ func (s *Service) StartSearchQueue() {
 				}
 				search := parts[0]
 				uuid := parts[1]
-				fmt.Printf("parts: %v, uuid: %v\n", parts, uuid)
 
 				var pubkey *string
 				if len(parts) > 2 && parts[2] != "" {
@@ -372,40 +364,3 @@ func (s *Service) StartFollowsNotesQueue() {
 
 	<-forever
 }
-
-// func (s *Service) StartAuthorsMetadataQueue() {
-// 	forever := make(chan struct{})
-
-// 	queueName := "author_metadata"
-
-// 	msgs, channel, conn, err := queue.ConsumeQueue(queueName)
-// 	if err != nil {
-// 		fmt.Printf("Error consuming message from the %v queue, %v\n", queueName, err)
-// 	}
-
-// 	defer conn.Close()
-// 	defer channel.Close()
-
-// 	go func() {
-// 		for {
-// 			for d := range msgs {
-// 				searchUUID := string(d.Body)
-// 				parts := strings.Split(searchUUID, ":")
-// 				if len(parts) != 3 {
-// 					continue
-// 				}
-
-// 				userPubkey := parts[0]
-// 				authorPubkey := parts[0]
-// 				uuid := parts[1]
-
-// 				if !s.checkAndUpdateUUID(&authorPubkey, uuid, "") {
-// 					continue
-// 				}
-
-// 				s.retrieveAuthorMetadata(authorPubkey, userPubkey, uuid)
-// 			}
-// 		}
-// 	}()
-// 	<-forever
-// }
