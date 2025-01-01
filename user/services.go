@@ -61,27 +61,6 @@ func (s *Service) checkAndUpdateUUID(userHexKey string, uuid string, search stri
 	return true
 }
 
-// func (s *Service) checkAndUpdateUUID(userHexKey *string, uuid string, search string) bool {
-// 	s.pubKeyUUIDLock.Lock()
-// 	defer s.pubKeyUUIDLock.Unlock()
-
-// 	var key string
-// 	if userHexKey != nil && *userHexKey != "" {
-// 		key = *userHexKey
-// 	} else {
-// 		key = search
-// 	}
-
-// 	// this needs to be updated because if a logged in user does multiple searches it will return false because it will match on their pubkey
-// 	existingUUID, exists := s.pubKeyUUID[key]
-// 	if exists && existingUUID == uuid {
-// 		return false
-// 	}
-
-// 	s.pubKeyUUID[key] = uuid
-// 	return true
-// }
-
 func (s *Service) createNote(note data.NewNote) {
 	for _, relayUrl := range s.relayUrls {
 		go func(relayUrl string) {
@@ -90,7 +69,6 @@ func (s *Service) createNote(note data.NewNote) {
 	}
 }
 
-// use the relays on the interface
 func (s *Service) followList(relayUrls []string, userHexKey string, followsFinished chan<- string) {
 	for _, relayUrl := range relayUrls {
 		go func(relayUrl string) {

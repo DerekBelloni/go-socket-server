@@ -25,6 +25,7 @@ func NewRedisClient() *RedisClient {
 }
 
 func ExtractPubKeys(tags []interface{}) ([]string, bool) {
+	fmt.Printf("extract pubkeys: %v\n", tags)
 	if len(tags) == 0 {
 		return nil, false
 	}

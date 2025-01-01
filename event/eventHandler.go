@@ -89,6 +89,7 @@ func HandleEvent(eventData []interface{}, eventChan chan string, connector core.
 	case 0:
 		searchKey, searchKeyExists := subscriptionTracker.InSearchEvent(eventData, "0")
 		if !searchKeyExists {
+			fmt.Printf("metadata event: %v\n", eventData)
 			queue.MetadataQueue(eventData, eventChan)
 		} else {
 			queue.AuthorMetadataQueue(eventData, searchKey)
@@ -124,5 +125,5 @@ func HandleNotice(noticeData []interface{}) {
 
 func HandleEOSE(eoseData []interface{}, relayUrl string, eventChan chan<- string) {
 	fmt.Printf("EOSE received: %v, %v\n\n", eoseData, relayUrl)
-	eventChan <- relayUrl
+	// eventChan <- relayUrl
 }
