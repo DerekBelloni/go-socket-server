@@ -87,16 +87,14 @@ func HandleEvent(eventData []interface{}, eventChan chan string, connector core.
 
 	switch kind {
 	case 0:
-		searchKey, searchKeyExists := subscriptionTracker.InSearchEvent(eventData)
+		searchKey, searchKeyExists := subscriptionTracker.InSearchEvent(eventData, "0")
 		if !searchKeyExists {
-			// fmt.Printf("kind 0 event data: %v\n", eventData)
 			queue.MetadataQueue(eventData, eventChan)
 		} else {
-			fmt.Printf("author metadata, event handler: %v\n", eventData)
 			queue.AuthorMetadataQueue(eventData, searchKey)
 		}
 	case 1:
-		searchKey, searchKeyExists := subscriptionTracker.InSearchEvent(eventData)
+		searchKey, searchKeyExists := subscriptionTracker.InSearchEvent(eventData, "1")
 		// this is only for follower notes at the moment
 		subscriptionPubkey, subscriptionExists := subscriptionTracker.InSubscriptionMapping(eventData)
 

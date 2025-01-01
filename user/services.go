@@ -40,13 +40,13 @@ func NewService(relayConnection *relay.RelayConnection, relayUrls []string, sear
 // 	return context.WithCancel(context.WithValue(context.Background(), "userPubKey", userHexKey))
 // }
 
-func (s *Service) checkAndUpdateUUID(userHexKey *string, uuid string, search string) bool {
+func (s *Service) checkAndUpdateUUID(userHexKey string, uuid string, search string) bool {
 	s.pubKeyUUIDLock.Lock()
 	defer s.pubKeyUUIDLock.Unlock()
 
 	var key string
-	if userHexKey != nil && *userHexKey != "" {
-		key = *userHexKey
+	if userHexKey != "" {
+		key = userHexKey
 	} else {
 		key = search
 	}
@@ -60,6 +60,27 @@ func (s *Service) checkAndUpdateUUID(userHexKey *string, uuid string, search str
 	s.pubKeyUUID[key] = uuid
 	return true
 }
+
+// func (s *Service) checkAndUpdateUUID(userHexKey *string, uuid string, search string) bool {
+// 	s.pubKeyUUIDLock.Lock()
+// 	defer s.pubKeyUUIDLock.Unlock()
+
+// 	var key string
+// 	if userHexKey != nil && *userHexKey != "" {
+// 		key = *userHexKey
+// 	} else {
+// 		key = search
+// 	}
+
+// 	// this needs to be updated because if a logged in user does multiple searches it will return false because it will match on their pubkey
+// 	existingUUID, exists := s.pubKeyUUID[key]
+// 	if exists && existingUUID == uuid {
+// 		return false
+// 	}
+
+// 	s.pubKeyUUID[key] = uuid
+// 	return true
+// }
 
 func (s *Service) createNote(note data.NewNote) {
 	for _, relayUrl := range s.relayUrls {
@@ -97,7 +118,7 @@ func (s *Service) followsNotes(userPubKey string, followPubKey string, uuid stri
 	}
 }
 
-func (s *Service) retrieveSearch(search string, uuid string, pubkey *string) {
+func (s *Service) retrieveSearch(search string, uuid string, pubkey string) {
 	relayUrl := "wss://relay.nostr.band/"
 	go func() {
 		s.relayConnection.RetrieveSearch(relayUrl, search, s.subscriptionTracker, uuid, pubkey)
@@ -149,7 +170,7 @@ func (s *Service) StartMetadataQueue() {
 				userHexKey := parts[0]
 				uuid := parts[1]
 
-				if !s.checkAndUpdateUUID(&userHexKey, uuid, "") {
+				if !s.checkAndUpdateUUID(userHexKey, uuid, "") {
 					continue
 				}
 
@@ -198,7 +219,7 @@ func (s *Service) StartFollowsMetadataQueue() {
 				userHexKey := parts[0]
 				uuid := parts[1]
 
-				if !s.checkAndUpdateUUID(&userHexKey, uuid, "") {
+				if !s.checkAndUpdateUUID(userHexKey, uuid, "") {
 					continue
 				}
 
@@ -248,7 +269,7 @@ func (s *Service) StartCreateNoteQueue() {
 				userHexKey := parts[0]
 				uuid := parts[1]
 
-				if !s.checkAndUpdateUUID(&userHexKey, uuid, "") {
+				if !s.checkAndUpdateUUID(userHexKey, uuid, "") {
 					continue
 				}
 
@@ -307,10 +328,9 @@ func (s *Service) StartSearchQueue() {
 				search := parts[0]
 				uuid := parts[1]
 
-				var pubkey *string
+				var pubkey string
 				if len(parts) > 2 && parts[2] != "" {
-					pubkeyStr := parts[2]
-					pubkey = &pubkeyStr
+					pubkey = parts[2]
 				}
 
 				if !s.checkAndUpdateUUID(pubkey, uuid, search) {
@@ -351,7 +371,7 @@ func (s *Service) StartFollowsNotesQueue() {
 				followPubkey := parts[1]
 				uuid := parts[2]
 
-				if !s.checkAndUpdateUUID(&userPubkey, uuid, "") {
+				if !s.checkAndUpdateUUID(userPubkey, uuid, "") {
 					continue
 				}
 

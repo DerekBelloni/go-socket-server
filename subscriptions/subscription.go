@@ -178,7 +178,7 @@ func CreateNoteEvent(relayUrl string, newNote data.NewNote, writeChan chan<- []b
 	writeChan <- jsonBytes
 }
 
-func RetrieveSearchSubscription(relayUrl string, search string, writeChan chan<- []byte, eventChan <-chan string, subscriptionTracker core.SubscriptionTracker, uuid string, pubkey *string) {
+func RetrieveSearchSubscription(relayUrl string, search string, writeChan chan<- []byte, eventChan <-chan string, subscriptionTracker core.SubscriptionTracker, uuid string, pubkey string) {
 	go func() {
 		subscriptionID, err := generateRandomString(16)
 		if err != nil {
@@ -213,7 +213,7 @@ func SearchedAuthorMetadata(relayUrl string, authorPubkey string, searchKey stri
 	}
 
 	subscriptionID, err := generateRandomString(16)
-	fmt.Printf("SEARCH KEY IN SUBSCRIPTION: %v\n\n\n,SUBSCRIPTIONID IN SUBSCRIPTION: %v\n\n\n", uuid, subscriptionID)
+
 	if err != nil {
 		fmt.Printf("Error generating a subscription id: %v\n", err)
 	}
@@ -231,8 +231,7 @@ func SearchedAuthorMetadata(relayUrl string, authorPubkey string, searchKey stri
 	if err != nil {
 		fmt.Printf("Error marshalling subscription request: %v\n", err)
 	}
-	// fmt.Printf("AUTHOR METADATA!!!!: %v\n\n\n\n", userPubkey)
 
-	subscriptionTracker.AddSearch("", uuid, subscriptionID, &userPubkey)
+	subscriptionTracker.AddSearch("author", uuid, subscriptionID, userPubkey)
 	writeChan <- subscriptionRequestJSON
 }

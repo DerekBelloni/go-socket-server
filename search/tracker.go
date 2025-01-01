@@ -18,7 +18,7 @@ func NewSearchTrackerImpl() *SearchTrackerImpl {
 	}
 }
 
-func (st *SearchTrackerImpl) InSearchEvent(event []interface{}) (string, bool) {
+func (st *SearchTrackerImpl) InSearchEvent(event []interface{}, eventKind string) (string, bool) {
 	subscriptionID, ok := event[1].(string)
 	if !ok {
 		fmt.Println("Could not extract subscription ID from event")
@@ -29,6 +29,10 @@ func (st *SearchTrackerImpl) InSearchEvent(event []interface{}) (string, bool) {
 	st.searchTrackerUUIDLOCK.Lock()
 	searchKey := st.searchTrackerUUID[subscriptionID]
 	st.searchTrackerUUIDLOCK.Unlock()
+
+	// if eventKind == "0" {
+	// 	fmt.Printf("kind 0 subscription id: %v\n\n search key: %v\n\n", subscriptionID, searchKey)
+	// }
 
 	if searchKey != "" {
 		searchKeyExists = true
@@ -73,16 +77,14 @@ func (st *SearchTrackerImpl) AddSubscription(subscriptionID string, userPubkey s
 	}
 }
 
-func (st *SearchTrackerImpl) AddSearch(search string, uuid string, subscriptionId string, pubkey *string) {
+func (st *SearchTrackerImpl) AddSearch(search string, uuid string, subscriptionId string, pubkey string) {
 	st.searchTrackerUUIDLOCK.Lock()
 	defer st.searchTrackerUUIDLOCK.Unlock()
 
-	if pubkey == nil {
-		fmt.Printf("UUID IN ADD SEARCH!!!: %v\n", uuid)
+	if pubkey == "" {
 		st.searchTrackerUUID[subscriptionId] = uuid
-	} else if *pubkey != "" {
-		fmt.Printf("In add search, uuid: %v\n\n pubkey: %v\n\n", uuid, pubkey)
-		st.searchTrackerUUID[subscriptionId] = *pubkey
+	} else {
+		st.searchTrackerUUID[subscriptionId] = pubkey
 	}
 }
 
