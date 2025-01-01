@@ -10,9 +10,9 @@ import (
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
-type SearchEventPubkey struct {
-	SearchEvent []interface{}
-	SearchKey   string
+type SearchEvent struct {
+	Event     []interface{}
+	SearchKey string
 }
 
 type FollowsEvent struct {
@@ -64,7 +64,7 @@ func ConsumeQueue(queueName string) (<-chan amqp091.Delivery, *amqp.Channel, *am
 	return msgs, channel, conn, err
 }
 
-func setQueue(queueName string, eventJson []byte, eventChan chan<- string) {
+func setQueue(queueName string, eventJson []byte) {
 	conn, err := amqp.Dial("amqp://guest:guest@localhost:5672/")
 	if err != nil {
 		fmt.Printf("Failed to connect to RabbitMQ: %v\n", err)
@@ -119,7 +119,7 @@ func NotesQueue(notesEvent []interface{}, eventChan chan string, followsPubkey s
 		if err != nil {
 			fmt.Printf("Error marshalling notes event into JSON: %v\n", err)
 		}
-		setQueue(queueName, notesEventJSON, nil)
+		setQueue(queueName, notesEventJSON)
 	} else {
 		followsEventStruct := FollowsEvent{
 			FollowsEvent: notesEvent,
@@ -128,7 +128,7 @@ func NotesQueue(notesEvent []interface{}, eventChan chan string, followsPubkey s
 		if err != nil {
 			fmt.Printf("Error marshalling follow event into JSON")
 		}
-		setQueue(queueName, followsEventJSON, nil)
+		setQueue(queueName, followsEventJSON)
 	}
 }
 
@@ -140,7 +140,7 @@ func NewNotesQueue(event data.EventMessage, eventChan chan string) {
 	if err != nil {
 		fmt.Printf("Error marshalling notes event into JSON: %v\n", err)
 	}
-	setQueue(queueName, notesEventJson, eventChan)
+	setQueue(queueName, notesEventJson)
 }
 
 func MetadataQueue(metadataEvent []interface{}, eventChan chan string) {
@@ -149,7 +149,7 @@ func MetadataQueue(metadataEvent []interface{}, eventChan chan string) {
 	if err != nil {
 		fmt.Printf("Error marshalling metadata event into JSON: %v\n", err)
 	}
-	setQueue(queueName, metadataEventJSON, eventChan)
+	setQueue(queueName, metadataEventJSON)
 	// eventChan <- "done"
 }
 
@@ -159,23 +159,33 @@ func FollowListQueue(followListEvent []interface{}, eventChan chan string) {
 	if err != nil {
 		fmt.Printf("Error marshalling follow list event into JSON: %v\n", err)
 	}
-	setQueue(queueName, followListEventJSON, eventChan)
+	setQueue(queueName, followListEventJSON)
 }
 
 func SearchQueue(searchEvent []interface{}, searchKey string, eventChan chan string) {
 	queueName := "search_results"
-	searchResultStruct := SearchEventPubkey{
-		SearchEvent: searchEvent,
-		SearchKey:   searchKey,
+	searchResultStruct := SearchEvent{
+		Event:     searchEvent,
+		SearchKey: searchKey,
 	}
 	searchResultStructJson, err := json.Marshal(searchResultStruct)
 	if err != nil {
 		fmt.Printf("Error marshalling search event into JSON: %v\n", err)
 	}
-	setQueue(queueName, searchResultStructJson, eventChan)
+	setQueue(queueName, searchResultStructJson)
 }
 
 func AuthorMetadataQueue(metadataEvent []interface{}, searchKey string) {
 	queueName := "author_metadata"
 	fmt.Printf("queueName: %v\n", queueName)
+	fmt.Printf("search key in queue handler: %v\n", searchKey)
+	searchEvent := SearchEvent{
+		Event:     metadataEvent,
+		SearchKey: searchKey,
+	}
+	searchEventJSON, err := json.Marshal(searchEvent)
+	if err != nil {
+		fmt.Printf("Error marshalling search event into JSONL %v\n", err)
+	}
+	setQueue(queueName, searchEventJSON)
 }
