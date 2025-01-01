@@ -120,6 +120,7 @@ func NotesQueue(notesEvent []interface{}, eventChan chan string, followsPubkey s
 			fmt.Printf("Error marshalling notes event into JSON: %v\n", err)
 		}
 		setQueue(queueName, notesEventJSON)
+		eventChan <- "done"
 	} else {
 		followsEventStruct := FollowsEvent{
 			FollowsEvent: notesEvent,
@@ -151,7 +152,7 @@ func MetadataQueue(metadataEvent []interface{}, eventChan chan string) {
 		fmt.Printf("Error marshalling metadata event into JSON: %v\n", err)
 	}
 	setQueue(queueName, metadataEventJSON)
-	// eventChan <- "done"
+	eventChan <- "done"
 }
 
 func FollowListQueue(followListEvent []interface{}, eventChan chan string) {
@@ -161,6 +162,7 @@ func FollowListQueue(followListEvent []interface{}, eventChan chan string) {
 		fmt.Printf("Error marshalling follow list event into JSON: %v\n", err)
 	}
 	setQueue(queueName, followListEventJSON)
+	eventChan <- "done"
 }
 
 func SearchQueue(searchEvent []interface{}, searchKey string, eventChan chan string) {

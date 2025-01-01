@@ -1,6 +1,7 @@
 package relay
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -27,6 +28,8 @@ type RelayManager struct {
 	eventChans    map[string]chan string
 	readChans     map[string]chan []byte
 	writeChans    map[string]chan []byte
+	contexts      map[string]context.Context
+	cancelFuncs   map[string]context.CancelFunc
 	Connector     core.RelayConnector
 	SearchTracker core.SubscriptionTracker
 }
@@ -38,6 +41,8 @@ func NewRelayManager(connector core.RelayConnector, searchTracker core.Subscript
 		eventChans:    make(map[string]chan string),
 		readChans:     make(map[string]chan []byte),
 		writeChans:    make(map[string]chan []byte),
+		contexts:      make(map[string]context.Context),
+		cancelFuncs:   make(map[string]context.CancelFunc),
 		SearchTracker: searchTracker,
 		Connector:     connector,
 	}
@@ -50,9 +55,6 @@ func (rm *RelayManager) GetConnection(relayUrl string) (chan []byte, chan string
 	_, writeChan, _, eventChan, err := rm.getExistingConnection(relayUrl)
 
 	if err == nil && rm.isConnected(relayUrl) {
-		// go rm.writeLoop(conn, relayUrl, writeChan)
-		// go rm.readLoop(conn, relayUrl, readChan)
-		// go rm.processReadChannel(readChan, relayUrl, eventChan)
 		return writeChan, eventChan, nil
 	}
 
@@ -74,6 +76,7 @@ func (rm *RelayManager) getExistingConnection(relayUrl string) (*websocket.Conn,
 
 func (rm *RelayManager) createNewConnection(relayUrl string) (chan []byte, chan string, error) {
 	conn, err := rm.createConnection(relayUrl)
+	ctx, cancel := context.WithCancel(context.Background())
 
 	if err != nil {
 		return nil, nil, errors.New("could not establish new socket connection")
@@ -87,9 +90,11 @@ func (rm *RelayManager) createNewConnection(relayUrl string) (chan []byte, chan 
 	rm.readChans[relayUrl] = readChan
 	rm.writeChans[relayUrl] = writeChan
 	rm.connections[relayUrl] = conn
+	rm.contexts[relayUrl] = ctx
+	rm.cancelFuncs[relayUrl] = cancel
 
-	go rm.writeLoop(conn, relayUrl, writeChan)
-	go rm.readLoop(conn, relayUrl, readChan)
+	go rm.writeLoop(ctx, conn, relayUrl, writeChan)
+	go rm.readLoop(ctx, conn, relayUrl, readChan)
 	go rm.processReadChannel(readChan, relayUrl, eventChan)
 	// go rm.connectionHeartbeat(relayUrl)
 	return writeChan, eventChan, nil
@@ -126,6 +131,21 @@ func (rm *RelayManager) createConnection(relayUrl string) (*websocket.Conn, erro
 	return conn, nil
 }
 
+func (rm *RelayManager) attempReconnection(relayUrl string) {
+
+}
+
+func (rm *RelayManager) handleConnectionError(relayUrl string, err error) {
+	switch {
+	case websocket.IsUnexpectedCloseError(err):
+		log.Printf("Connection closed unexpectedly: %v\n", err)
+	case errors.Is(err, io.EOF):
+		log.Printf("Connection closed normally\n")
+	default:
+		log.Printf("Connection error: %v\n", err)
+	}
+}
+
 func (rm *RelayManager) pongHandler(relayUrl string) error {
 	rm.mutex.Lock()
 	defer rm.mutex.Unlock()
@@ -143,7 +163,7 @@ func (rm *RelayManager) pongHandler(relayUrl string) error {
 	return nil
 }
 
-func (rm *RelayManager) readLoop(conn *websocket.Conn, relayUrl string, readChan chan []byte) {
+func (rm *RelayManager) readLoop(ctx context.Context, conn *websocket.Conn, relayUrl string, readChan chan []byte) {
 	// go rm.pongHandler(relayUrl)
 	defer conn.Close()
 
@@ -226,17 +246,15 @@ func (rm *RelayManager) processMessage(relayMessage []interface{}, relayUrl stri
 	}
 }
 
-func (rm *RelayManager) writeLoop(conn *websocket.Conn, relayUrl string, writeChan <-chan []byte) {
-	for {
-		for msg := range writeChan {
-			rm.mutex.Lock()
-			err := conn.WriteMessage(websocket.TextMessage, msg)
-			rm.mutex.Unlock()
-			if err != nil {
-				fmt.Printf("Error sending subscription request to relay: %v\n", err)
-				rm.CloseConnection(relayUrl)
-				break
-			}
+func (rm *RelayManager) writeLoop(ctx context.Context, conn *websocket.Conn, relayUrl string, writeChan <-chan []byte) {
+	for msg := range writeChan {
+		rm.mutex.Lock()
+		err := conn.WriteMessage(websocket.TextMessage, msg)
+		rm.mutex.Unlock()
+		if err != nil {
+			rm.CloseConnection(relayUrl)
+			rm.handleConnectionError(relayUrl, err)
+			break
 		}
 	}
 }
