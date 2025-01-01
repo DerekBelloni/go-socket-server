@@ -24,12 +24,12 @@ var (
 type RelayManager struct {
 	connections   map[string]*websocket.Conn
 	subscriptions map[string]string
-	mutex         sync.RWMutex
 	eventChans    map[string]chan string
 	readChans     map[string]chan []byte
 	writeChans    map[string]chan []byte
 	contexts      map[string]context.Context
 	cancelFuncs   map[string]context.CancelFunc
+	mutex         sync.RWMutex
 	Connector     core.RelayConnector
 	SearchTracker core.SubscriptionTracker
 }
@@ -95,7 +95,7 @@ func (rm *RelayManager) createNewConnection(relayUrl string) (chan []byte, chan 
 
 	go rm.writeLoop(ctx, conn, relayUrl, writeChan)
 	go rm.readLoop(ctx, conn, relayUrl, readChan)
-	go rm.processReadChannel(readChan, relayUrl, eventChan)
+	go rm.processReadChannel(ctx, readChan, relayUrl, eventChan)
 	// go rm.connectionHeartbeat(relayUrl)
 	return writeChan, eventChan, nil
 }
@@ -131,8 +131,13 @@ func (rm *RelayManager) createConnection(relayUrl string) (*websocket.Conn, erro
 	return conn, nil
 }
 
-func (rm *RelayManager) attempReconnection(relayUrl string) {
-
+func (rm *RelayManager) deleteRelayMappings(relayUrl string) {
+	delete(rm.eventChans, relayUrl)
+	delete(rm.readChans, relayUrl)
+	delete(rm.writeChans, relayUrl)
+	delete(rm.connections, relayUrl)
+	delete(rm.contexts, relayUrl)
+	delete(rm.cancelFuncs, relayUrl)
 }
 
 func (rm *RelayManager) handleConnectionError(relayUrl string, err error) {
@@ -144,6 +149,18 @@ func (rm *RelayManager) handleConnectionError(relayUrl string, err error) {
 	default:
 		log.Printf("Connection error: %v\n", err)
 	}
+}
+
+func (rm *RelayManager) handleChannelClosue(relayUrl string) {
+	rm.mutex.Lock()
+	cancelFunc, exists := rm.cancelFuncs[relayUrl]
+	rm.mutex.Unlock()
+
+	if exists {
+		cancelFunc()
+	}
+
+	rm.CloseConnection(relayUrl)
 }
 
 func (rm *RelayManager) pongHandler(relayUrl string) error {
@@ -213,7 +230,7 @@ func (rm *RelayManager) readLoop(ctx context.Context, conn *websocket.Conn, rela
 	}
 }
 
-func (rm *RelayManager) processReadChannel(readChan <-chan []byte, relayUrl string, eventChan chan string) {
+func (rm *RelayManager) processReadChannel(ctx context.Context, readChan <-chan []byte, relayUrl string, eventChan chan string) {
 	for msg := range readChan {
 		var relayMessage []interface{}
 		err := json.Unmarshal(msg, &relayMessage)
@@ -222,7 +239,7 @@ func (rm *RelayManager) processReadChannel(readChan <-chan []byte, relayUrl stri
 			log.Printf("Error unmarshalling relay message: %v\n", err)
 			continue
 		}
-		// fmt.Printf("relay message: %v\n\n\n", relayMessage)
+
 		rm.processMessage(relayMessage, relayUrl, eventChan)
 	}
 }
@@ -247,14 +264,30 @@ func (rm *RelayManager) processMessage(relayMessage []interface{}, relayUrl stri
 }
 
 func (rm *RelayManager) writeLoop(ctx context.Context, conn *websocket.Conn, relayUrl string, writeChan <-chan []byte) {
-	for msg := range writeChan {
-		rm.mutex.Lock()
-		err := conn.WriteMessage(websocket.TextMessage, msg)
-		rm.mutex.Unlock()
-		if err != nil {
+	defer func() {
+		log.Printf("Write loop ending for %s: ", relayUrl)
+	}()
+
+	for {
+		select {
+		case <-ctx.Done():
 			rm.CloseConnection(relayUrl)
-			rm.handleConnectionError(relayUrl, err)
-			break
+			return
+		case msg, ok := <-writeChan:
+			if !ok {
+				rm.handleChannelClosue(relayUrl)
+				return
+			}
+
+			rm.mutex.Lock()
+			err := conn.WriteMessage(websocket.TextMessage, msg)
+			rm.mutex.Unlock()
+
+			if err != nil {
+				rm.CloseConnection(relayUrl)
+				rm.handleConnectionError(relayUrl, err)
+				return
+			}
 		}
 	}
 }
@@ -264,16 +297,20 @@ func (rm *RelayManager) CloseConnection(relayUrl string) {
 	defer rm.mutex.Unlock()
 
 	if relayConn, exists := rm.connections[relayUrl]; exists {
+		// Try to send close message, but don't block too long
+		relayConn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""), time.Now().Add(time.Second))
+		// Close the connection regardless of whether the message sent
 		relayConn.Close()
-		delete(rm.connections, relayUrl)
+		rm.deleteRelayMappings(relayUrl)
 	}
 }
 
 func (rm *RelayManager) isConnected(relayUrl string) bool {
 	conn, connExists := rm.connections[relayUrl]
+
 	if !connExists {
 		return false
 	}
 
-	return conn.UnderlyingConn() != nil
+	return conn.UnderlyingConn() == nil
 }

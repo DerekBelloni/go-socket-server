@@ -84,12 +84,11 @@ func HandleEvent(eventData []interface{}, eventChan chan string, connector core.
 	if !ok {
 		fmt.Println("Could not extract kind from content")
 	}
-
+	fmt.Printf("kind: %v\n", kind)
 	switch kind {
 	case 0:
 		searchKey, searchKeyExists := subscriptionTracker.InSearchEvent(eventData, "0")
 		if !searchKeyExists {
-			fmt.Printf("metadata event: %v\n", eventData)
 			queue.MetadataQueue(eventData, eventChan)
 		} else {
 			queue.AuthorMetadataQueue(eventData, searchKey)
@@ -114,8 +113,9 @@ func HandleEvent(eventData []interface{}, eventChan chan string, connector core.
 			queue.SearchQueue(eventData, searchKey, eventChan)
 		}
 	case 3:
+		fmt.Printf("follow list: %v\n", eventData)
 		queue.FollowListQueue(eventData, eventChan)
-		eventChan <- relayUrl
+		// eventChan <- relayUrl
 	}
 }
 

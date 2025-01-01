@@ -146,7 +146,7 @@ func NewNotesQueue(event data.EventMessage, eventChan chan string) {
 
 func MetadataQueue(metadataEvent []interface{}, eventChan chan string) {
 	queueName := "user_metadata"
-	fmt.Printf("in queuehandler, metadata event: %v\n", metadataEvent)
+
 	metadataEventJSON, err := json.Marshal(metadataEvent)
 	if err != nil {
 		fmt.Printf("Error marshalling metadata event into JSON: %v\n", err)
@@ -161,6 +161,7 @@ func FollowListQueue(followListEvent []interface{}, eventChan chan string) {
 	if err != nil {
 		fmt.Printf("Error marshalling follow list event into JSON: %v\n", err)
 	}
+	fmt.Printf("follow list event: %v\n", followListEventJSON)
 	setQueue(queueName, followListEventJSON)
 	eventChan <- "done"
 }

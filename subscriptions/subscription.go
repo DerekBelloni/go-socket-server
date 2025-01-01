@@ -74,6 +74,7 @@ func UserNotesSubscription(relayUrl string, userHexKey string, writeChan chan<- 
 	}
 }
 func FollowListSubscription(relayUrl string, userHexKey string, writeChan chan<- []byte, eventChan <-chan string, followsFinished chan<- string) {
+	fmt.Printf("follow list subscription, hexkey: %v\n\n", userHexKey)
 	subscriptionID, err := generateRandomString(16)
 	if err != nil {
 		fmt.Printf("Error generating a subscription id: %v\n", err)
@@ -92,10 +93,11 @@ func FollowListSubscription(relayUrl string, userHexKey string, writeChan chan<-
 		fmt.Printf("Error marshalling subscription request: %v\n ", err)
 	}
 	writeChan <- subscriptionRequestJSON
-	follows := <-eventChan
-	if follows != "" {
-		followsFinished <- relayUrl
-	}
+	// follows := <-eventChan
+	// fmt.Printf("follows finished: %v\n", follows)
+	// if follows != "" {
+	// 	followsFinished <- relayUrl
+	// }
 }
 
 func FollowListMetadataSubscription(relayUrl string, pubKeys []string, writeChan chan<- []byte, eventChan <-chan string) {
