@@ -33,9 +33,6 @@ func NewService(relayConnection *relay.RelayConnection, relayUrls []string, sear
 	}
 }
 
-// Probably need to incorporate contexts
-// Especially now the I know I get the subscription id back on events from the relays I think it is a great idea
-
 // func createUserContext(userHexKey string) (context.Context, context.CancelFunc) {
 // 	return context.WithCancel(context.WithValue(context.Background(), "userPubKey", userHexKey))
 // }
@@ -139,6 +136,7 @@ func (s *Service) StartMetadataQueue() {
 	go func() {
 		for {
 			for d := range msgs {
+				fmt.Printf("here we are\n")
 				userHexKeyUUID := string(d.Body)
 				parts := strings.Split(userHexKeyUUID, ":")
 				if len(parts) != 2 {

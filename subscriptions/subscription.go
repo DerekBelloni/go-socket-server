@@ -93,11 +93,11 @@ func FollowListSubscription(relayUrl string, userHexKey string, writeChan chan<-
 		fmt.Printf("Error marshalling subscription request: %v\n ", err)
 	}
 	writeChan <- subscriptionRequestJSON
-	// follows := <-eventChan
-	// fmt.Printf("follows finished: %v\n", follows)
-	// if follows != "" {
-	// 	followsFinished <- relayUrl
-	// }
+	follows := <-eventChan
+
+	if follows != "" {
+		followsFinished <- relayUrl
+	}
 }
 
 func FollowListMetadataSubscription(relayUrl string, pubKeys []string, writeChan chan<- []byte, eventChan <-chan string) {

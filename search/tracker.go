@@ -30,10 +30,6 @@ func (st *SearchTrackerImpl) InSearchEvent(event []interface{}, eventKind string
 	searchKey := st.searchTrackerUUID[subscriptionID]
 	st.searchTrackerUUIDLOCK.Unlock()
 
-	// if eventKind == "0" {
-	// 	fmt.Printf("kind 0 subscription id: %v\n\n search key: %v\n\n", subscriptionID, searchKey)
-	// }
-
 	if searchKey != "" {
 		searchKeyExists = true
 	} else {
