@@ -136,7 +136,7 @@ func NotesQueue(notesEvent []interface{}, eventChan chan string, followsPubkey s
 // This using the new NostrEvent which is alreadu packaged
 func NewNotesQueue(event data.EventMessage, eventChan chan string) {
 	queueName := "user_notes"
-
+	fmt.Printf("user notes in queue handler: %v\n", event)
 	notesEventJson, err := json.Marshal(event)
 	if err != nil {
 		fmt.Printf("Error marshalling notes event into JSON: %v\n", err)

@@ -191,7 +191,7 @@ func RetrieveSearchSubscription(relayUrl string, search string, writeChan chan<-
 			subscriptionID,
 			map[string]interface{}{
 				"kind":   1,
-				"limit":  10,
+				"limit":  30,
 				"search": search,
 			},
 		}

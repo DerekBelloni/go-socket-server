@@ -13,7 +13,6 @@ type RelayConnector interface {
 	SendNoteToRelay(relayUrl string, newNote data.NewNote)
 }
 
-// think I can get rid of this
 type SubscriptionTracker interface {
 	InSearchEvent(event []interface{}, eventKind string) (string, bool)
 	InSubscriptionMapping(event []interface{}) (string, bool)
