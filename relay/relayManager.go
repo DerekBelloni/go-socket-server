@@ -181,8 +181,6 @@ func (rm *RelayManager) pongHandler(relayUrl string) error {
 }
 
 func (rm *RelayManager) readLoop(ctx context.Context, conn *websocket.Conn, relayUrl string, readChan chan []byte) {
-	// go rm.pongHandler(relayUrl)
-	defer conn.Close()
 
 	err := rm.connections[relayUrl].SetReadDeadline(time.Now().Add(pongWait))
 	if err != nil {
