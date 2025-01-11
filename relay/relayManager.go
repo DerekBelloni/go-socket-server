@@ -149,43 +149,45 @@ func (rm *RelayManager) handleChannelClosue(relayUrl string) {
 	rm.CloseConnection(relayUrl)
 }
 
-func (rm *RelayManager) pingHandler(ctx context.Context, relayUrl string) {
+func (rm *RelayManager) pingHandler(ctx context.Context, conn *websocket.Conn, relayUrl string) {
 	ticker := time.NewTicker(pingInterval)
 	defer ticker.Stop()
 
 	for {
 		select {
 		case <-ctx.Done():
+			rm.mutex.Lock()
 			rm.CloseConnection(relayUrl)
+			rm.mutex.Unlock()
 			return
 		case <-ticker.C:
-			rm.mutex.Lock()
-			if err := rm.connections[relayUrl].WriteControl(websocket.PingMessage, []byte{}, time.Now().Add(time.Second)); err != nil {
+			log.Printf("Sending PING to %s", relayUrl) // Add logging
+			if err := conn.WriteControl(websocket.PingMessage, []byte{}, time.Now().Add(time.Second)); err != nil {
+				rm.mutex.Lock()
 				rm.handleConnectionError(relayUrl, err, "pingHandler")
 				rm.CloseConnection(relayUrl)
 				rm.mutex.Unlock()
 				return
 			}
-			rm.mutex.Unlock()
 		}
 	}
 }
 
 func (rm *RelayManager) pongHandler(conn *websocket.Conn) error {
-	rm.mutex.Lock()
-	defer rm.mutex.Unlock()
-
 	conn.SetPongHandler(func(string) error {
+		// log.Printf("Received PONG") // Add logging
 		if err := conn.SetReadDeadline(time.Now().Add(pongWait)); err != nil {
+			// log.Printf("Error setting read deadline in pong handler: %v", err) // Add logging
 			return err
 		}
+		// log.Printf("Successfully set new read deadline")
 		return nil
 	})
 	return nil
 }
 
 func (rm *RelayManager) readLoop(ctx context.Context, conn *websocket.Conn, relayUrl string, readChan chan []byte) {
-	go rm.pingHandler(ctx, relayUrl)
+	go rm.pingHandler(ctx, conn, relayUrl)
 	rm.pongHandler(conn)
 	for {
 		select {

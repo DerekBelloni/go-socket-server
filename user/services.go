@@ -310,10 +310,10 @@ func (s *Service) StartSearchQueue() {
 					pubkey = parts[2]
 				}
 
-				if !s.checkAndUpdateUUID(pubkey, uuid, search) {
-					fmt.Printf("Mapping already exists for search: %s. Skipping processing\n", search)
-					continue
-				}
+				// if !s.checkAndUpdateUUID(pubkey, uuid, search) {
+				// 	fmt.Printf("Mapping already exists for search: %s. Skipping processing\n", search)
+				// 	continue
+				// }
 
 				s.retrieveSearch(search, uuid, pubkey)
 			}
