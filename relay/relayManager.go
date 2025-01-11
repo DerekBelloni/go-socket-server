@@ -100,20 +100,6 @@ func (rm *RelayManager) createNewConnection(relayUrl string) (chan []byte, chan 
 	return writeChan, eventChan, nil
 }
 
-func (rm *RelayManager) connectionHeartbeat(relayUrl string) {
-	ticker := time.NewTicker(pingInterval)
-	if conn, exists := rm.connections[relayUrl]; exists {
-		<-ticker.C
-		log.Println("ping")
-		rm.mutex.Lock()
-		if err := conn.WriteMessage(websocket.PingMessage, []byte("")); err != nil {
-			log.Println("Ping message error: ", err)
-		}
-		rm.mutex.Unlock()
-	}
-
-}
-
 func (rm *RelayManager) createConnection(relayUrl string) (*websocket.Conn, error) {
 	dialer := websocket.Dialer{
 		ReadBufferSize:  1024 * 1024,
@@ -140,14 +126,14 @@ func (rm *RelayManager) deleteRelayMappings(relayUrl string) {
 	delete(rm.cancelFuncs, relayUrl)
 }
 
-func (rm *RelayManager) handleConnectionError(relayUrl string, err error) {
+func (rm *RelayManager) handleConnectionError(relayUrl string, err error, errSource string) {
 	switch {
 	case websocket.IsUnexpectedCloseError(err):
-		log.Printf("Connection closed unexpectedly: %v\n", err)
+		log.Printf("Connection closed unexpectedly: %v, error source: %v\n", err, errSource)
 	case errors.Is(err, io.EOF):
-		log.Printf("Connection closed normally\n")
+		log.Printf("Connection closed normally, error source: %v\n", errSource)
 	default:
-		log.Printf("Connection error: %v\n", err)
+		log.Printf("Connection error: %v, error source: %v\n", err, errSource)
 	}
 }
 
@@ -163,35 +149,41 @@ func (rm *RelayManager) handleChannelClosue(relayUrl string) {
 	rm.CloseConnection(relayUrl)
 }
 
-func (rm *RelayManager) pongHandler(relayUrl string) error {
+func (rm *RelayManager) pingHandler(ctx context.Context, relayUrl string) {
+	ticker := time.NewTicker(pingInterval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			rm.CloseConnection(relayUrl)
+			return
+		case <-ticker.C:
+			rm.mutex.Lock()
+			if err := rm.connections[relayUrl].WriteControl(websocket.PingMessage, []byte{}, time.Now().Add(time.Second)); err != nil {
+				rm.handleConnectionError(relayUrl, err, "pingHandler")
+				rm.CloseConnection(relayUrl)
+				rm.mutex.Unlock()
+				return
+			}
+			rm.mutex.Unlock()
+		}
+	}
+}
+
+func (rm *RelayManager) pongHandler(conn *websocket.Conn, relayUrl string) error {
 	rm.mutex.Lock()
 	defer rm.mutex.Unlock()
 
-	err := rm.connections[relayUrl].SetReadDeadline(time.Now().Add(pongWait))
-	if err != nil {
-		fmt.Printf("error setting read dead line for relay connection: %v\n", err)
+	if err := conn.SetReadDeadline(time.Now().Add(pongWait)); err != nil {
+		return err
 	}
-
-	rm.connections[relayUrl].SetPongHandler(func(string) error {
-		log.Println("pong")
-		return rm.connections[relayUrl].SetReadDeadline(time.Now().Add(pongWait))
-	})
-
 	return nil
 }
 
 func (rm *RelayManager) readLoop(ctx context.Context, conn *websocket.Conn, relayUrl string, readChan chan []byte) {
-
-	err := rm.connections[relayUrl].SetReadDeadline(time.Now().Add(pongWait))
-	if err != nil {
-		fmt.Printf("error setting read dead line for relay connection: %v\n", err)
-	}
-
-	rm.connections[relayUrl].SetPongHandler(func(string) error {
-		log.Println("pong")
-		return rm.connections[relayUrl].SetReadDeadline(time.Now().Add(pongWait))
-	})
-
+	rm.pingHandler(ctx, relayUrl)
+	rm.pongHandler(conn, relayUrl)
 	for {
 		select {
 		case <-ctx.Done():
@@ -203,11 +195,9 @@ func (rm *RelayManager) readLoop(ctx context.Context, conn *websocket.Conn, rela
 		default:
 			messageType, reader, err := conn.NextReader()
 			if err != nil {
-				rm.handleConnectionError(relayUrl, err)
+				rm.handleConnectionError(relayUrl, err, "readLoop")
 				rm.CloseConnection(relayUrl)
 				return
-				// if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
-				// }
 			}
 
 			if messageType == websocket.TextMessage {
@@ -235,40 +225,6 @@ func (rm *RelayManager) readLoop(ctx context.Context, conn *websocket.Conn, rela
 			}
 		}
 	}
-	// for {
-	// 	messageType, reader, err := conn.NextReader()
-	// 	if err != nil {
-	// 		if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
-	// 			log.Printf("Error getting next reader from relay: %v, error: %v\n", relayUrl, err)
-	// 			rm.CloseConnection(relayUrl)
-	// 		}
-	// 		break
-	// 	}
-
-	// 	if messageType == websocket.TextMessage {
-	// 		message, err := io.ReadAll(reader)
-	// 		if err != nil {
-	// 			log.Printf("Error reading message from relay: %v, error: %v\n", relayUrl, err)
-	// 			continue
-	// 		}
-
-	// 		var jsonMessage []json.RawMessage
-	// 		if err := json.Unmarshal(message, &jsonMessage); err != nil {
-	// 			log.Printf("Error parsing JSON from relay: %v, error: %v\n", relayUrl, err)
-	// 			continue
-	// 		}
-	// 		select {
-	// 		case readChan <- message:
-	// 		default:
-	// 			var msg []interface{}
-	// 			_ = json.Unmarshal(message, &msg)
-	// 			fmt.Printf("[DROP] %s: Dropped message type: %v, buffer size: %d/100\n",
-	// 				relayUrl, msg[0], len(readChan))
-	// 		}
-	// 	} else if messageType == websocket.BinaryMessage {
-	// 		log.Printf("Received unexpected binary message from relay: %v\n", relayUrl)
-	// 	}
-	// }
 }
 
 func (rm *RelayManager) processReadChannel(ctx context.Context, readChan <-chan []byte, relayUrl string, eventChan chan string) {
@@ -293,17 +249,6 @@ func (rm *RelayManager) processReadChannel(ctx context.Context, readChan <-chan 
 			rm.processMessage(relayMessage, relayUrl, eventChan)
 		}
 	}
-	// for msg := range readChan {
-	// 	var relayMessage []interface{}
-	// 	err := json.Unmarshal(msg, &relayMessage)
-
-	// 	if err != nil {
-	// 		log.Printf("Error unmarshalling relay message: %v\n", err)
-	// 		continue
-	// 	}
-
-	// 	rm.processMessage(relayMessage, relayUrl, eventChan)
-	// }
 }
 
 func (rm *RelayManager) processMessage(relayMessage []interface{}, relayUrl string, eventChan chan string) {
@@ -347,7 +292,7 @@ func (rm *RelayManager) writeLoop(ctx context.Context, conn *websocket.Conn, rel
 
 			if err != nil {
 				rm.CloseConnection(relayUrl)
-				rm.handleConnectionError(relayUrl, err)
+				rm.handleConnectionError(relayUrl, err, "writeLoop")
 				return
 			}
 		}
