@@ -171,27 +171,27 @@ func (rm *RelayManager) pingHandler(ctx context.Context, relayUrl string) {
 	}
 }
 
-func (rm *RelayManager) pongHandler(conn *websocket.Conn, relayUrl string) error {
+func (rm *RelayManager) pongHandler(conn *websocket.Conn) error {
 	rm.mutex.Lock()
 	defer rm.mutex.Unlock()
 
-	if err := conn.SetReadDeadline(time.Now().Add(pongWait)); err != nil {
-		return err
-	}
+	conn.SetPongHandler(func(string) error {
+		if err := conn.SetReadDeadline(time.Now().Add(pongWait)); err != nil {
+			return err
+		}
+		return nil
+	})
 	return nil
 }
 
 func (rm *RelayManager) readLoop(ctx context.Context, conn *websocket.Conn, relayUrl string, readChan chan []byte) {
-	rm.pingHandler(ctx, relayUrl)
-	rm.pongHandler(conn, relayUrl)
+	go rm.pingHandler(ctx, relayUrl)
+	rm.pongHandler(conn)
 	for {
 		select {
 		case <-ctx.Done():
 			rm.CloseConnection(relayUrl)
 			return
-		// case <-ticker.C:
-		// maybe do some sort of health check, clean up
-
 		default:
 			messageType, reader, err := conn.NextReader()
 			if err != nil {
