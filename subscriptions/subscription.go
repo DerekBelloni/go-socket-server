@@ -68,14 +68,12 @@ func UserNotesSubscription(relayUrl string, userHexKey string, writeChan chan<- 
 		fmt.Printf("Error marshalling subscription request: %v\n ", err)
 	}
 	writeChan <- subscriptionRequestJSON
-	fmt.Println("past write chan, user notes, subscriptions.go")
 	notes := <-eventChan
 	if notes != "" {
 		notesFinished <- relayUrl
 	}
 }
 func FollowListSubscription(relayUrl string, userHexKey string, writeChan chan<- []byte, eventChan <-chan string, followsFinished chan<- string) {
-	fmt.Printf("follow list subscription, hexkey: %v\n\n", userHexKey)
 	subscriptionID, err := generateRandomString(16)
 	if err != nil {
 		fmt.Printf("Error generating a subscription id: %v\n", err)
