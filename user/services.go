@@ -38,6 +38,7 @@ func NewService(relayConnection *relay.RelayConnection, relayUrls []string, sear
 // }
 
 func (s *Service) checkAndUpdateUUID(userHexKey string, uuid string, search string) bool {
+	fmt.Printf("uuid in service layer mapping: %v\n", uuid)
 	s.pubKeyUUIDLock.Lock()
 	defer s.pubKeyUUIDLock.Unlock()
 

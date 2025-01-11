@@ -195,53 +195,117 @@ func (rm *RelayManager) readLoop(ctx context.Context, conn *websocket.Conn, rela
 	})
 
 	for {
-		messageType, reader, err := conn.NextReader()
-		if err != nil {
-			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
-				log.Printf("Error getting next reader from relay: %v, error: %v\n", relayUrl, err)
-				rm.CloseConnection(relayUrl)
-			}
-			break
-		}
+		select {
+		case <-ctx.Done():
+			rm.CloseConnection(relayUrl)
+			return
+		// case <-ticker.C:
+		// maybe do some sort of health check, clean up
 
-		if messageType == websocket.TextMessage {
-			message, err := io.ReadAll(reader)
+		default:
+			messageType, reader, err := conn.NextReader()
 			if err != nil {
-				log.Printf("Error reading message from relay: %v, error: %v\n", relayUrl, err)
-				continue
+				rm.handleConnectionError(relayUrl, err)
+				rm.CloseConnection(relayUrl)
+				return
+				// if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
+				// }
 			}
 
-			var jsonMessage []json.RawMessage
-			if err := json.Unmarshal(message, &jsonMessage); err != nil {
-				log.Printf("Error parsing JSON from relay: %v, error: %v\n", relayUrl, err)
-				continue
+			if messageType == websocket.TextMessage {
+				message, err := io.ReadAll(reader)
+				if err != nil {
+					log.Printf("Error reading message from relay: %v, error: %v\n", relayUrl, err)
+					continue
+				}
+
+				var jsonMessage []json.RawMessage
+				if err := json.Unmarshal(message, &jsonMessage); err != nil {
+					log.Printf("Error parsing JSON from relay: %v, error: %v\n", relayUrl, err)
+					continue
+				}
+				select {
+				case readChan <- message:
+				default:
+					var msg []interface{}
+					_ = json.Unmarshal(message, &msg)
+					fmt.Printf("[DROP] %s: Dropped message type: %v, buffer size: %d/100\n",
+						relayUrl, msg[0], len(readChan))
+				}
+			} else if messageType == websocket.BinaryMessage {
+				log.Printf("Received unexpected binary message from relay: %v\n", relayUrl)
 			}
-			select {
-			case readChan <- message:
-			default:
-				var msg []interface{}
-				_ = json.Unmarshal(message, &msg)
-				fmt.Printf("[DROP] %s: Dropped message type: %v, buffer size: %d/100\n",
-					relayUrl, msg[0], len(readChan))
-			}
-		} else if messageType == websocket.BinaryMessage {
-			log.Printf("Received unexpected binary message from relay: %v\n", relayUrl)
 		}
 	}
+	// for {
+	// 	messageType, reader, err := conn.NextReader()
+	// 	if err != nil {
+	// 		if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
+	// 			log.Printf("Error getting next reader from relay: %v, error: %v\n", relayUrl, err)
+	// 			rm.CloseConnection(relayUrl)
+	// 		}
+	// 		break
+	// 	}
+
+	// 	if messageType == websocket.TextMessage {
+	// 		message, err := io.ReadAll(reader)
+	// 		if err != nil {
+	// 			log.Printf("Error reading message from relay: %v, error: %v\n", relayUrl, err)
+	// 			continue
+	// 		}
+
+	// 		var jsonMessage []json.RawMessage
+	// 		if err := json.Unmarshal(message, &jsonMessage); err != nil {
+	// 			log.Printf("Error parsing JSON from relay: %v, error: %v\n", relayUrl, err)
+	// 			continue
+	// 		}
+	// 		select {
+	// 		case readChan <- message:
+	// 		default:
+	// 			var msg []interface{}
+	// 			_ = json.Unmarshal(message, &msg)
+	// 			fmt.Printf("[DROP] %s: Dropped message type: %v, buffer size: %d/100\n",
+	// 				relayUrl, msg[0], len(readChan))
+	// 		}
+	// 	} else if messageType == websocket.BinaryMessage {
+	// 		log.Printf("Received unexpected binary message from relay: %v\n", relayUrl)
+	// 	}
+	// }
 }
 
 func (rm *RelayManager) processReadChannel(ctx context.Context, readChan <-chan []byte, relayUrl string, eventChan chan string) {
-	for msg := range readChan {
-		var relayMessage []interface{}
-		err := json.Unmarshal(msg, &relayMessage)
+	for {
+		select {
+		case <-ctx.Done():
+			rm.CloseConnection(relayUrl)
+			return
+		case msg, ok := <-readChan:
+			if !ok {
+				rm.handleChannelClosue(relayUrl)
+				return
+			}
+			var relayMessage []interface{}
+			err := json.Unmarshal(msg, &relayMessage)
 
-		if err != nil {
-			log.Printf("Error unmarshalling relay message: %v\n", err)
-			continue
+			if err != nil {
+				log.Printf("Error unmarshalling relay message: %v\n", err)
+				continue
+			}
+
+			rm.processMessage(relayMessage, relayUrl, eventChan)
 		}
-
-		rm.processMessage(relayMessage, relayUrl, eventChan)
 	}
+	// for msg := range readChan {
+	// 	var relayMessage []interface{}
+	// 	err := json.Unmarshal(msg, &relayMessage)
+
+	// 	if err != nil {
+	// 		log.Printf("Error unmarshalling relay message: %v\n", err)
+	// 		continue
+	// 	}
+
+	// 	rm.processMessage(relayMessage, relayUrl, eventChan)
+	// }
 }
 
 func (rm *RelayManager) processMessage(relayMessage []interface{}, relayUrl string, eventChan chan string) {
