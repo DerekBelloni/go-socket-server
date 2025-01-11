@@ -68,6 +68,7 @@ func UserNotesSubscription(relayUrl string, userHexKey string, writeChan chan<- 
 		fmt.Printf("Error marshalling subscription request: %v\n ", err)
 	}
 	writeChan <- subscriptionRequestJSON
+	fmt.Println("past write chan, user notes, subscriptions.go")
 	notes := <-eventChan
 	if notes != "" {
 		notesFinished <- relayUrl

@@ -68,6 +68,7 @@ func (s *Service) createNote(note data.NewNote) {
 }
 
 func (s *Service) followList(relayUrls []string, userHexKey string, followsFinished chan<- string) {
+	fmt.Printf("in follow list in service")
 	for _, relayUrl := range relayUrls {
 		go func(relayUrl string) {
 			s.relayConnection.GetFollowList(relayUrl, userHexKey, followsFinished)
@@ -137,7 +138,6 @@ func (s *Service) StartMetadataQueue() {
 	go func() {
 		for {
 			for d := range msgs {
-				fmt.Printf("here we are\n")
 				userHexKeyUUID := string(d.Body)
 				parts := strings.Split(userHexKeyUUID, ":")
 				if len(parts) != 2 {

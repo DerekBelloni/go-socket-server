@@ -41,7 +41,6 @@ func ConsumeQueue(queueName string) (<-chan amqp091.Delivery, *amqp.Channel, *am
 		false,
 		nil,
 	)
-	fmt.Printf("queue name: %v\n", queue.Name)
 
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("failed to declare queue: %v", err)
@@ -115,6 +114,7 @@ func NotesQueue(notesEvent []interface{}, eventChan chan string, followsPubkey s
 	queueName := "user_notes"
 
 	if followsPubkey == "" {
+		fmt.Printf("user notes in queue: %v\n", notesEvent)
 		notesEventJSON, err := json.Marshal(notesEvent)
 		if err != nil {
 			fmt.Printf("Error marshalling notes event into JSON: %v\n", err)
@@ -136,7 +136,7 @@ func NotesQueue(notesEvent []interface{}, eventChan chan string, followsPubkey s
 // This using the new NostrEvent which is alreadu packaged
 func NewNotesQueue(event data.EventMessage, eventChan chan string) {
 	queueName := "user_notes"
-	fmt.Printf("user notes in queue handler: %v\n", event)
+
 	notesEventJson, err := json.Marshal(event)
 	if err != nil {
 		fmt.Printf("Error marshalling notes event into JSON: %v\n", err)
@@ -161,7 +161,7 @@ func FollowListQueue(followListEvent []interface{}, eventChan chan string) {
 	if err != nil {
 		fmt.Printf("Error marshalling follow list event into JSON: %v\n", err)
 	}
-	fmt.Printf("follow list event: %v\n", followListEventJSON)
+
 	setQueue(queueName, followListEventJSON)
 	eventChan <- "done"
 }
