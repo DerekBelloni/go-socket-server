@@ -79,7 +79,7 @@ func setQueue(queueName string, eventJson []byte) {
 	queue, err := channel.QueueDeclare(
 		queueName,
 		false,
-		false,
+		true,
 		false,
 		false,
 		nil,
@@ -91,7 +91,7 @@ func setQueue(queueName string, eventJson []byte) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-
+	fmt.Printf("queue being publsihed: %v\n\n", queueName)
 	err = channel.PublishWithContext(
 		ctx,
 		"",
@@ -114,7 +114,6 @@ func NotesQueue(notesEvent []interface{}, eventChan chan string, followsPubkey s
 	queueName := "user_notes"
 
 	if followsPubkey == "" {
-		fmt.Printf("user notes in queue: %v\n", notesEvent)
 		notesEventJSON, err := json.Marshal(notesEvent)
 		if err != nil {
 			fmt.Printf("Error marshalling notes event into JSON: %v\n", err)
@@ -146,13 +145,13 @@ func NewNotesQueue(event data.EventMessage, eventChan chan string) {
 
 func MetadataQueue(metadataEvent []interface{}, eventChan chan string) {
 	queueName := "user_metadata"
-	fmt.Printf("metadata event in queue: %v\n", metadataEvent)
+	fmt.Printf("metadata event in queue: %v\n\n\n", metadataEvent)
 	metadataEventJSON, err := json.Marshal(metadataEvent)
 	if err != nil {
 		fmt.Printf("Error marshalling metadata event into JSON: %v\n", err)
 	}
 	setQueue(queueName, metadataEventJSON)
-	eventChan <- "done"
+	// eventChan <- "done"
 }
 
 func FollowListQueue(followListEvent []interface{}, eventChan chan string) {
@@ -163,7 +162,7 @@ func FollowListQueue(followListEvent []interface{}, eventChan chan string) {
 	}
 
 	setQueue(queueName, followListEventJSON)
-	eventChan <- "done"
+	// eventChan <- "done"
 }
 
 func SearchQueue(searchEvent []interface{}, searchKey string, eventChan chan string) {
@@ -181,8 +180,7 @@ func SearchQueue(searchEvent []interface{}, searchKey string, eventChan chan str
 
 func AuthorMetadataQueue(metadataEvent []interface{}, searchKey string) {
 	queueName := "author_metadata"
-	fmt.Printf("queueName: %v\n", queueName)
-	fmt.Printf("search key in queue handler: %v\n", searchKey)
+
 	searchEvent := SearchEvent{
 		Event:     metadataEvent,
 		SearchKey: searchKey,

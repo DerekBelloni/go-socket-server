@@ -117,8 +117,8 @@ func HandleEvent(eventData []interface{}, eventChan chan string, connector core.
 	}
 }
 
-func HandleNotice(noticeData []interface{}) {
-	fmt.Printf("Notice received: %v\n", noticeData)
+func HandleNotice(noticeData []interface{}, relayURL string) {
+	fmt.Printf("Notice received: %v, relay url: %v\n", noticeData, relayURL)
 }
 
 func HandleEOSE(eoseData []interface{}, relayUrl string, eventChan chan<- string) {

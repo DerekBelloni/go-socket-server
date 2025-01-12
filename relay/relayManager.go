@@ -41,7 +41,6 @@ func NewRelayManager(connector core.RelayConnector, searchTracker core.Subscript
 		eventChans:    make(map[string]chan string),
 		readChans:     make(map[string]chan []byte),
 		writeChans:    make(map[string]chan []byte),
-		//
 		contexts:      make(map[string]context.Context),
 		cancelFuncs:   make(map[string]context.CancelFunc),
 		SearchTracker: searchTracker,
@@ -131,11 +130,11 @@ func (rm *RelayManager) handleChannelClosue(relayUrl string) {
 func (rm *RelayManager) handleConnectionError(relayUrl string, err error, errSource string) {
 	switch {
 	case websocket.IsUnexpectedCloseError(err):
-		log.Printf("Connection closed unexpectedly: %v, error source: %v, relay url: $v\n", err, errSource, relayUrl)
+		log.Printf("Connection closed unexpectedly: %v, error source: %v, relay url: %v\n", err, errSource, relayUrl)
 	case errors.Is(err, io.EOF):
-		log.Printf("Connection closed normally, error source: %v, relay url: $v\n", errSource, relayUrl)
+		log.Printf("Connection closed normally, error source: %v, relay url: %v\n", errSource, relayUrl)
 	default:
-		log.Printf("Connection error: %v, error source: %v, relay url: $v\n", err, errSource, relayUrl)
+		log.Printf("Connection error: %v, error source: %v, relay url: %v\n", err, errSource, relayUrl)
 	}
 }
 
@@ -151,10 +150,9 @@ func (rm *RelayManager) pingHandler(ctx context.Context, conn *websocket.Conn, r
 			rm.mutex.Unlock()
 			return
 		case <-ticker.C:
-			// log.Printf("Sending PING to %s", relayUrl) // Add logging
 			if err := conn.WriteControl(websocket.PingMessage, []byte{}, time.Now().Add(time.Second)); err != nil {
 				rm.mutex.Lock()
-				// rm.handleConnectionError(relayUrl, err, "pingHandler")
+				rm.handleConnectionError(relayUrl, err, "pingHandler")
 				rm.CloseConnection(relayUrl)
 				rm.mutex.Unlock()
 				return
@@ -165,14 +163,12 @@ func (rm *RelayManager) pingHandler(ctx context.Context, conn *websocket.Conn, r
 
 func (rm *RelayManager) pongHandler(conn *websocket.Conn) error {
 	conn.SetPongHandler(func(string) error {
-		// log.Printf("Received PONG") // Add logging
 		rm.mutex.Lock()
 		if err := conn.SetReadDeadline(time.Now().Add(pongWait)); err != nil {
-			// log.Printf("Error setting read deadline in pong handler: %v", err) // Add logging
+			log.Printf("Error setting read deadline in pong handler: %v", err)
 			rm.mutex.Unlock()
 			return err
 		}
-		// log.Printf("Successfully set new read deadline")
 		rm.mutex.Unlock()
 		return nil
 	})
@@ -186,7 +182,6 @@ func (rm *RelayManager) readLoop(ctx context.Context, conn *websocket.Conn, rela
 	for {
 		select {
 		case <-ctx.Done():
-			fmt.Println("ctx select case")
 			rm.CloseConnection(relayUrl)
 			return
 		default:
@@ -196,7 +191,7 @@ func (rm *RelayManager) readLoop(ctx context.Context, conn *websocket.Conn, rela
 					log.Printf("Error getting next reader from relay: %v, error: %v\n", relayUrl, err)
 					rm.CloseConnection(relayUrl)
 				}
-				break
+				return
 			}
 
 			if messageType == websocket.TextMessage {
@@ -205,7 +200,7 @@ func (rm *RelayManager) readLoop(ctx context.Context, conn *websocket.Conn, rela
 					log.Printf("Error reading message from relay: %v, error: %v\n", relayUrl, err)
 					continue
 				}
-				fmt.Printf("New message in read loop: %v\n\n\n", string(message))
+
 				var jsonMessage []json.RawMessage
 				if err := json.Unmarshal(message, &jsonMessage); err != nil {
 					log.Printf("Error parsing JSON from relay: %v, error: %v\n", relayUrl, err)
@@ -213,7 +208,7 @@ func (rm *RelayManager) readLoop(ctx context.Context, conn *websocket.Conn, rela
 				}
 				select {
 				case readChan <- message:
-					log.Printf("Message sent to readChan successfully")
+					// log.Printf("Message sent to readChan successfully")
 				default:
 					var msg []interface{}
 					_ = json.Unmarshal(message, &msg)
@@ -272,7 +267,7 @@ func (rm *RelayManager) processMessage(relayMessage []interface{}, relayUrl stri
 	case "EVENT":
 		event.HandleEvent(relayMessage, eventChan, rm.Connector, relayUrl, rm.SearchTracker)
 	case "NOTICE":
-		event.HandleNotice(relayMessage)
+		event.HandleNotice(relayMessage, relayUrl)
 	case "EOSE":
 		event.HandleEOSE(relayMessage, relayUrl, eventChan)
 	default:
@@ -281,18 +276,6 @@ func (rm *RelayManager) processMessage(relayMessage []interface{}, relayUrl stri
 }
 
 func (rm *RelayManager) writeLoop(ctx context.Context, conn *websocket.Conn, relayUrl string, writeChan <-chan []byte) {
-	// for {
-	// 	for msg := range writeChan {
-	// 		fmt.Printf("new message in write loop: %v\n", string(msg))
-	// 		rm.mutex.Lock()
-	// 		err := conn.WriteMessage(websocket.TextMessage, msg)
-	// 		rm.mutex.Unlock()
-	// 		if err != nil {
-	// 			fmt.Printf("Error sending subscription request to relay: %v\n", err)
-	// 			break
-	// 		}
-	// 	}
-	// }
 	defer func() {
 		log.Printf("Write loop ending for %s: ", relayUrl)
 	}()
@@ -307,7 +290,6 @@ func (rm *RelayManager) writeLoop(ctx context.Context, conn *websocket.Conn, rel
 				rm.handleChannelClosue(relayUrl)
 				return
 			}
-			fmt.Printf("message in write loop: %v\n", string(msg))
 			rm.mutex.Lock()
 			err := conn.WriteMessage(websocket.TextMessage, msg)
 			rm.mutex.Unlock()
@@ -318,6 +300,7 @@ func (rm *RelayManager) writeLoop(ctx context.Context, conn *websocket.Conn, rel
 				return
 			}
 		}
+		time.Sleep(2 * time.Millisecond)
 	}
 }
 

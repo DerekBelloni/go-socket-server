@@ -31,6 +31,7 @@ func MetadataSubscription(relayUrl string, userHexKey string, writeChan chan<- [
 	if err != nil {
 		fmt.Printf("Error generating a subscription id: %v\n", err)
 	}
+	fmt.Printf("metadata subscription pubkey: %v\n\n", userHexKey)
 	subscriptionRequest := []interface{}{
 		"REQ",
 		subscriptionID,

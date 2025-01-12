@@ -38,7 +38,6 @@ func NewService(relayConnection *relay.RelayConnection, relayUrls []string, sear
 // }
 
 func (s *Service) checkAndUpdateUUID(userHexKey string, uuid string, search string) bool {
-	fmt.Printf("uuid in service layer mapping: %v\n", uuid)
 	s.pubKeyUUIDLock.Lock()
 	defer s.pubKeyUUIDLock.Unlock()
 
@@ -68,7 +67,6 @@ func (s *Service) createNote(note data.NewNote) {
 }
 
 func (s *Service) followList(relayUrls []string, userHexKey string, followsFinished chan<- string) {
-	fmt.Printf("in follow list in service")
 	for _, relayUrl := range relayUrls {
 		go func(relayUrl string) {
 			s.relayConnection.GetFollowList(relayUrl, userHexKey, followsFinished)
@@ -150,18 +148,18 @@ func (s *Service) StartMetadataQueue() {
 				if !s.checkAndUpdateUUID(userHexKey, uuid, "") {
 					continue
 				}
-
+				fmt.Printf("[BANANA!!!!!]: %v\n\n", userHexKey)
 				s.userMetadata(s.relayUrls, userHexKey, metadataFinished)
-				<-metadataFinished
-				fmt.Println("past user metadata channel")
+				// <-metadataFinished
+				// fmt.Println("past user metadata channel")
 
 				s.userNotes(s.relayUrls, userHexKey, notesFinished)
-				<-notesFinished
-				fmt.Println("Completed user notes processing")
+				// <-notesFinished
+				// fmt.Println("Completed user notes processing")
 
 				s.followList(s.relayUrls, userHexKey, followsFinished)
-				<-followsFinished
-				fmt.Println("Completed follow list processing")
+				// <-followsFinished
+				// fmt.Println("Completed follow list processing")
 			}
 		}
 	}()
@@ -310,10 +308,10 @@ func (s *Service) StartSearchQueue() {
 					pubkey = parts[2]
 				}
 
-				// if !s.checkAndUpdateUUID(pubkey, uuid, search) {
-				// 	fmt.Printf("Mapping already exists for search: %s. Skipping processing\n", search)
-				// 	continue
-				// }
+				if !s.checkAndUpdateUUID(pubkey, uuid, search) {
+					fmt.Printf("Mapping already exists for search: %s. Skipping processing\n", search)
+					continue
+				}
 
 				s.retrieveSearch(search, uuid, pubkey)
 			}
