@@ -143,6 +143,17 @@ func NewNotesQueue(event data.EventMessage, eventChan chan string) {
 	setQueue(queueName, notesEventJson)
 }
 
+func FollowsMetadataQueue(metadataEvent []interface{}, eventChan chan string) {
+	queueName := "user_metadata"
+	fmt.Printf("metadata event in queue: %v\n\n\n", metadataEvent)
+	metadataEventJSON, err := json.Marshal(metadataEvent)
+	if err != nil {
+		fmt.Printf("Error marshalling metadata event into JSON: %v\n", err)
+	}
+	setQueue(queueName, metadataEventJSON)
+}
+
+// need a seperate method for follows metadata
 func MetadataQueue(metadataEvent []interface{}, eventChan chan string) {
 	queueName := "user_metadata"
 	fmt.Printf("metadata event in queue: %v\n\n\n", metadataEvent)
@@ -151,7 +162,7 @@ func MetadataQueue(metadataEvent []interface{}, eventChan chan string) {
 		fmt.Printf("Error marshalling metadata event into JSON: %v\n", err)
 	}
 	setQueue(queueName, metadataEventJSON)
-	// eventChan <- "done"
+	eventChan <- "done"
 }
 
 func FollowListQueue(followListEvent []interface{}, eventChan chan string) {
@@ -162,7 +173,6 @@ func FollowListQueue(followListEvent []interface{}, eventChan chan string) {
 	}
 
 	setQueue(queueName, followListEventJSON)
-	// eventChan <- "done"
 }
 
 func SearchQueue(searchEvent []interface{}, searchKey string, eventChan chan string) {

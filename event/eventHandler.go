@@ -88,6 +88,7 @@ func HandleEvent(eventData []interface{}, eventChan chan string, connector core.
 	switch kind {
 	case 0:
 		searchKey, searchKeyExists := subscriptionTracker.InSearchEvent(eventData, "0")
+		// need to parse which is a follows metadata, use the search tracker
 		if !searchKeyExists {
 			queue.MetadataQueue(eventData, eventChan)
 		} else {
