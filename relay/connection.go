@@ -51,14 +51,14 @@ func (rc *RelayConnection) GetFollowList(relayUrl string, userHexKey string, fol
 }
 
 // add the user key context here
-func (rc *RelayConnection) GetFollowListMetadata(relayUrl string, userHexKey string, pubKeys []string) {
+func (rc *RelayConnection) GetFollowListMetadata(relayUrl string, userHexKey string, pubKeys []string, subscriptionTracker core.SubscriptionTracker) {
 	writeChan, eventChan, err := rc.GetConnection(relayUrl)
 
 	if err != nil {
 		fmt.Printf("Dial error: %v\n", err)
 	}
 
-	subscriptions.FollowListMetadataSubscription(relayUrl, pubKeys, writeChan, eventChan)
+	subscriptions.FollowListMetadataSubscription(relayUrl, pubKeys, userHexKey, writeChan, eventChan, subscriptionTracker)
 }
 
 func (rc *RelayConnection) GetFollowsNotes(relayUrl string, userPubkey string, followsPubkey string, subscriptionTracker core.SubscriptionTracker, uuid string) {

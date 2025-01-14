@@ -80,7 +80,7 @@ func (s *Service) followsMetadata(userHexKey string) {
 
 	for _, relayUrl := range s.relayUrls {
 		go func(relayUrl string) {
-			s.relayConnection.GetFollowListMetadata(relayUrl, userHexKey, pubKeys)
+			s.relayConnection.GetFollowListMetadata(relayUrl, userHexKey, pubKeys, s.subscriptionTracker)
 		}(relayUrl)
 	}
 }

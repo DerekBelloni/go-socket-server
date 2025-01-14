@@ -25,7 +25,7 @@ func MetadataSubscription(relayUrl string, userHexKey string, writeChan chan<- [
 	if err != nil {
 		fmt.Printf("Error generating a subscription id: %v\n", err)
 	}
-	fmt.Printf("metadata subscription pubkey: %v\n\n", userHexKey)
+	fmt.Printf("!!!metadata subscription pubkey: %v\n\n", userHexKey)
 	subscriptionRequest := []interface{}{
 		"REQ",
 		subscriptionID,
@@ -39,36 +39,36 @@ func MetadataSubscription(relayUrl string, userHexKey string, writeChan chan<- [
 		fmt.Printf("Error marshalling subscription request: %v\n ", err)
 	}
 	writeChan <- subscriptionRequestJSON
-	// test := <-eventChan
-	// if test != "" {
-	// 	metadataSet <- relayUrl
-	// }
+	test := <-eventChan
+	if test != "" {
+		metadataSet <- relayUrl
+	}
 
 	// Wait for the metadata event or a timeout
-	select {
-	case test := <-eventChan:
-		if test != "" {
-			// Notify that metadata has been received
-			metadataSet <- relayUrl
-		}
-	case <-time.After(10 * time.Second): // Timeout after 10 seconds
-		fmt.Printf("Timeout waiting for metadata from relay: %s\n", relayUrl)
-	}
+	// select {
+	// case test := <-eventChan:
+	// 	if test != "" {
+	// 		// Notify that metadata has been received
+	// 		metadataSet <- relayUrl
+	// 	}
+	// case <-time.After(10 * time.Second): // Timeout after 10 seconds
+	// 	fmt.Printf("Timeout waiting for metadata from relay: %s\n", relayUrl)
+	// }
 
-	// Send the CLOSE message to terminate the subscription
-	closeMessage := []interface{}{
-		"CLOSE",
-		subscriptionID,
-	}
-	closeMessageJSON, err := json.Marshal(closeMessage)
-	if err != nil {
-		fmt.Printf("Error marshalling close message: %v\n", err)
-		return
-	}
+	// // Send the CLOSE message to terminate the subscription
+	// closeMessage := []interface{}{
+	// 	"CLOSE",
+	// 	subscriptionID,
+	// }
+	// closeMessageJSON, err := json.Marshal(closeMessage)
+	// if err != nil {
+	// 	fmt.Printf("Error marshalling close message: %v\n", err)
+	// 	return
+	// }
 
-	// Send the CLOSE message to the relay
-	writeChan <- closeMessageJSON
-	fmt.Printf("Sent CLOSE message for subscription ID: %s\n", subscriptionID)
+	// // Send the CLOSE message to the relay
+	// writeChan <- closeMessageJSON
+	// fmt.Printf("Sent CLOSE message for subscription ID: %s\n", subscriptionID)
 }
 func UserNotesSubscription(relayUrl string, userHexKey string, writeChan chan<- []byte, eventChan <-chan string, notesFinished chan<- string) {
 	subscriptionID, err := generateRandomString(16)
@@ -120,7 +120,8 @@ func FollowListSubscription(relayUrl string, userHexKey string, writeChan chan<-
 	}
 }
 
-func FollowListMetadataSubscription(relayUrl string, pubKeys []string, writeChan chan<- []byte, eventChan <-chan string) {
+func FollowListMetadataSubscription(relayUrl string, pubKeys []string, userHexKey string, writeChan chan<- []byte, eventChan <-chan string, subscriptionTracker core.SubscriptionTracker) {
+	// this needs to be one request
 	for _, pubKey := range pubKeys {
 		go func(pubKey string) {
 			subscriptionID, err := generateRandomString(16)
@@ -141,6 +142,8 @@ func FollowListMetadataSubscription(relayUrl string, pubKeys []string, writeChan
 			if err != nil {
 				fmt.Printf("Error marshalling subscription request: %v\n ", err)
 			}
+			subscriptionType := "followsMetadata"
+			subscriptionTracker.FollowsMetadataSubscription(subscriptionID, pubKey, userHexKey, subscriptionType)
 			writeChan <- subscriptionRequestJSON
 		}(pubKey)
 	}
