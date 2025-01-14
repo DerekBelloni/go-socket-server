@@ -143,8 +143,8 @@ func NewNotesQueue(event data.EventMessage, eventChan chan string) {
 	setQueue(queueName, notesEventJson)
 }
 
-func FollowsMetadataQueue(metadataEvent []interface{}, eventChan chan string) {
-	queueName := "user_metadata"
+func FollowsMetadataQueue(metadataEvent []interface{}, userPubkey string, followsPubkey string) {
+	queueName := "follows_metadata"
 	fmt.Printf("metadata event in queue: %v\n\n\n", metadataEvent)
 	metadataEventJSON, err := json.Marshal(metadataEvent)
 	if err != nil {

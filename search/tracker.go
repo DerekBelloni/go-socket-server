@@ -46,7 +46,7 @@ func (st *SearchTrackerImpl) InSearchEvent(event []interface{}, eventKind string
 	return searchKey, searchKeyExists
 }
 
-func (st *SearchTrackerImpl) InFollowsMetadtaMapping(event []interface{}) {
+func (st *SearchTrackerImpl) InFollowsMetadtaMapping(event []interface{}) (string, string, string, bool) {
 	subscriptionID, ok := event[1].(string)
 	if !ok {
 		fmt.Println("Could not extract subscription ID from event")
@@ -55,6 +55,11 @@ func (st *SearchTrackerImpl) InFollowsMetadtaMapping(event []interface{}) {
 	st.searchTrackerUUIDLOCK.Lock()
 	subscriptionInfo := st.newSubscriptionTracker[subscriptionID]
 	st.searchTrackerUUIDLOCK.Unlock()
+
+	userPubkey := subscriptionInfo.UserPubkey
+	followsPubkey := subscriptionInfo.FollowsPubkey
+	susbscriptionType := subscriptionInfo.Type
+	return userPubkey, followsPubkey, susbscriptionType, true
 }
 
 func (st *SearchTrackerImpl) InSubscriptionMapping(event []interface{}) (string, bool) {

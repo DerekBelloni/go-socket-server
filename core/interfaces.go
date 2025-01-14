@@ -14,7 +14,7 @@ type RelayConnector interface {
 }
 
 type SubscriptionTracker interface {
-	InFollowsMetadtaMapping(event []interface{})
+	InFollowsMetadtaMapping(event []interface{}) (string, string, string, bool)
 	InSearchEvent(event []interface{}, eventKind string) (string, bool)
 	InSubscriptionMapping(event []interface{}) (string, bool)
 	AddSearch(search string, uuid string, subscriptionId string, pubkey string)

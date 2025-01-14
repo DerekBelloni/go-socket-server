@@ -89,9 +89,11 @@ func HandleEvent(eventData []interface{}, eventChan chan string, connector core.
 	case 0:
 		searchKey, searchKeyExists := subscriptionTracker.InSearchEvent(eventData, "0")
 		// need to parse which is a follows metadata, use the search tracker
-		_, followsMetadatExists := subscriptionTracker.InFollowsMetadtaMapping(eventData)
+		userPubkey, followsPubkey, subscriptionType, followsMetadatExists := subscriptionTracker.InFollowsMetadtaMapping(eventData)
 		if !searchKeyExists {
 			queue.MetadataQueue(eventData, eventChan)
+		} else if !searchKeyExists && followsMetadatExists && subscriptionType == "followsMetadata" {
+			queue.FollowsMetadataQueue(eventData, userPubkey, followsPubkey)
 		} else {
 			queue.AuthorMetadataQueue(eventData, searchKey)
 		}
