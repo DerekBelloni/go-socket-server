@@ -122,31 +122,31 @@ func FollowListSubscription(relayUrl string, userHexKey string, writeChan chan<-
 
 func FollowListMetadataSubscription(relayUrl string, pubKeys []string, userHexKey string, writeChan chan<- []byte, eventChan <-chan string, subscriptionTracker core.SubscriptionTracker) {
 	// this needs to be one request
-	for _, pubKey := range pubKeys {
-		go func(pubKey string) {
-			subscriptionID, err := generateRandomString(16)
-			if err != nil {
-				fmt.Printf("Error generating a subscription id: %v\n", err)
-			}
-
-			subscriptionRequest := []interface{}{
-				"REQ",
-				subscriptionID,
-				map[string]interface{}{
-					"kinds":   []int{0},
-					"authors": []string{pubKey},
-				},
-			}
-
-			subscriptionRequestJSON, err := json.Marshal(subscriptionRequest)
-			if err != nil {
-				fmt.Printf("Error marshalling subscription request: %v\n ", err)
-			}
-			subscriptionType := "followsMetadata"
-			subscriptionTracker.FollowsMetadataSubscription(subscriptionID, pubKey, userHexKey, subscriptionType)
-			writeChan <- subscriptionRequestJSON
-		}(pubKey)
+	// for _, pubKey := range pubKeys {
+	// 	go func(pubKey string) {
+	subscriptionID, err := generateRandomString(16)
+	if err != nil {
+		fmt.Printf("Error generating a subscription id: %v\n", err)
 	}
+
+	subscriptionRequest := []interface{}{
+		"REQ",
+		subscriptionID,
+		map[string]interface{}{
+			"kinds":   []int{0},
+			"authors": pubKeys,
+		},
+	}
+
+	subscriptionRequestJSON, err := json.Marshal(subscriptionRequest)
+	if err != nil {
+		fmt.Printf("Error marshalling subscription request: %v\n ", err)
+	}
+	subscriptionType := "followsMetadata"
+	subscriptionTracker.FollowsMetadataSubscription(subscriptionID, "test", userHexKey, subscriptionType)
+	writeChan <- subscriptionRequestJSON
+	// 	}(pubKey)
+	// }
 }
 
 func FollowsNotesSubscription(relayUrl string, userPubkey string, followsPubkey string, subscriptionTracker core.SubscriptionTracker, writeChan chan<- []byte, eventChan <-chan string, uuid string) {
