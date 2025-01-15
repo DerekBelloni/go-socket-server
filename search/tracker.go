@@ -20,8 +20,9 @@ type SearchTrackerImpl struct {
 
 func NewSearchTrackerImpl() *SearchTrackerImpl {
 	return &SearchTrackerImpl{
-		searchTrackerUUID:   make(map[string]string),
-		subscriptionTracker: make(map[string]string),
+		searchTrackerUUID:      make(map[string]string),
+		subscriptionTracker:    make(map[string]string),
+		newSubscriptionTracker: make(map[string]SubscriptionInfo),
 	}
 }
 
@@ -52,14 +53,23 @@ func (st *SearchTrackerImpl) InFollowsMetadtaMapping(event []interface{}) (strin
 		fmt.Println("Could not extract subscription ID from event")
 	}
 
+	var followsMetadataExists bool
 	st.searchTrackerUUIDLOCK.Lock()
+	defer st.searchTrackerUUIDLOCK.Unlock()
+
 	subscriptionInfo := st.newSubscriptionTracker[subscriptionID]
-	st.searchTrackerUUIDLOCK.Unlock()
 
 	userPubkey := subscriptionInfo.UserPubkey
 	followsPubkey := subscriptionInfo.FollowsPubkey
 	susbscriptionType := subscriptionInfo.Type
-	return userPubkey, followsPubkey, susbscriptionType, true
+
+	if followsPubkey != "" && userPubkey != "" && susbscriptionType == "followsMetadata" {
+		followsMetadataExists = true
+	} else {
+		followsMetadataExists = false
+	}
+	return userPubkey, followsPubkey, susbscriptionType, followsMetadataExists
+
 }
 
 func (st *SearchTrackerImpl) InSubscriptionMapping(event []interface{}) (string, bool) {
@@ -89,9 +99,12 @@ func (st *SearchTrackerImpl) FollowsMetadataSubscription(subscriptionID string, 
 		FollowsPubkey: followsPubkey,
 		Type:          subscriptionType,
 	}
-	st.searchTrackerUUIDLOCK.Lock()
-	st.newSubscriptionTracker[subscriptionID] = subscriptionInfoStruct
-	st.searchTrackerUUIDLOCK.Unlock()
+
+	if subscriptionID != "" {
+		st.searchTrackerUUIDLOCK.Lock()
+		st.newSubscriptionTracker[subscriptionID] = subscriptionInfoStruct
+		st.searchTrackerUUIDLOCK.Unlock()
+	}
 }
 
 func (st *SearchTrackerImpl) AddSubscription(subscriptionID string, userPubkey string, followsPubkey string, uuid string) {

@@ -119,7 +119,7 @@ func NotesQueue(notesEvent []interface{}, eventChan chan string, followsPubkey s
 			fmt.Printf("Error marshalling notes event into JSON: %v\n", err)
 		}
 		setQueue(queueName, notesEventJSON)
-		eventChan <- "done"
+		// eventChan <- "done"
 	} else {
 		followsEventStruct := FollowsEvent{
 			FollowsEvent: notesEvent,
