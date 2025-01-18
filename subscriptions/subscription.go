@@ -121,9 +121,6 @@ func FollowListSubscription(relayUrl string, userHexKey string, writeChan chan<-
 }
 
 func FollowListMetadataSubscription(relayUrl string, pubKeys []string, userHexKey string, writeChan chan<- []byte, eventChan <-chan string, subscriptionTracker core.SubscriptionTracker) {
-	// this needs to be one request
-	// for _, pubKey := range pubKeys {
-	// 	go func(pubKey string) {
 	subscriptionID, err := generateRandomString(16)
 	if err != nil {
 		fmt.Printf("Error generating a subscription id: %v\n", err)
@@ -145,8 +142,6 @@ func FollowListMetadataSubscription(relayUrl string, pubKeys []string, userHexKe
 	subscriptionType := "followsMetadata"
 	subscriptionTracker.FollowsMetadataSubscription(subscriptionID, "test", userHexKey, subscriptionType)
 	writeChan <- subscriptionRequestJSON
-	// 	}(pubKey)
-	// }
 }
 
 func FollowsNotesSubscription(relayUrl string, userPubkey string, followsPubkey string, subscriptionTracker core.SubscriptionTracker, writeChan chan<- []byte, eventChan <-chan string, uuid string) {
@@ -203,6 +198,7 @@ func CreateNoteEvent(relayUrl string, newNote data.NewNote, writeChan chan<- []b
 	writeChan <- jsonBytes
 }
 
+// need to close these subscriptions for sure
 func RetrieveSearchSubscription(relayUrl string, search string, writeChan chan<- []byte, eventChan <-chan string, subscriptionTracker core.SubscriptionTracker, uuid string, pubkey string) {
 	go func() {
 		subscriptionID, err := generateRandomString(16)
