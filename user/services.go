@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/DerekBelloni/go-socket-server/core"
 	"github.com/DerekBelloni/go-socket-server/data"
@@ -66,10 +67,10 @@ func (s *Service) createNote(note data.NewNote) {
 	}
 }
 
-func (s *Service) followList(relayUrls []string, userHexKey string, followsFinished chan<- string) {
+func (s *Service) followList(relayUrls []string, userHexKey string) {
 	for _, relayUrl := range relayUrls {
 		go func(relayUrl string) {
-			s.relayConnection.GetFollowList(relayUrl, userHexKey, followsFinished)
+			s.relayConnection.GetFollowList(relayUrl, userHexKey)
 		}(relayUrl)
 	}
 }
@@ -100,27 +101,24 @@ func (s *Service) retrieveSearch(search string, uuid string, pubkey string) {
 	}()
 }
 
-func (s *Service) userNotes(relayUrls []string, userHexKey string, notesFinished chan<- string) {
+func (s *Service) userNotes(relayUrls []string, userHexKey string) {
 	for _, relayUrl := range relayUrls {
 		go func(relayUrl string) {
-			s.relayConnection.GetUserNotes(relayUrl, userHexKey, notesFinished)
+			s.relayConnection.GetUserNotes(relayUrl, userHexKey)
 		}(relayUrl)
 	}
 }
 
-func (s *Service) userMetadata(relayUrls []string, userHexKey string, metadataFinished chan<- string) {
+func (s *Service) userMetadata(relayUrls []string, userHexKey string) {
 	for _, relayUrl := range relayUrls {
 		go func(url string) {
-			s.relayConnection.GetUserMetadata(url, userHexKey, metadataFinished)
+			s.relayConnection.GetUserMetadata(url, userHexKey)
 		}(relayUrl)
 	}
 }
 
 func (s *Service) StartMetadataQueue() {
 	forever := make(chan struct{})
-	metadataFinished := make(chan string)
-	notesFinished := make(chan string)
-	followsFinished := make(chan string)
 
 	queueName := "user_pub_key"
 
@@ -148,18 +146,12 @@ func (s *Service) StartMetadataQueue() {
 				if !s.checkAndUpdateUUID(userHexKey, uuid, "") {
 					continue
 				}
-				fmt.Printf("[BANANA!!!!!]: %v\n\n", userHexKey)
-				s.userMetadata(s.relayUrls, userHexKey, metadataFinished)
-				// <-metadataFinished
-				// fmt.Println("past user metadata channel")
 
-				s.userNotes(s.relayUrls, userHexKey, notesFinished)
-				// <-notesFinished
-				// fmt.Println("Completed user notes processing")
-
-				s.followList(s.relayUrls, userHexKey, followsFinished)
-				// <-followsFinished
-				// fmt.Println("Completed follow list processing")
+				s.userMetadata(s.relayUrls, userHexKey)
+				time.Sleep(2 * time.Second)
+				s.userNotes(s.relayUrls, userHexKey)
+				time.Sleep(2 * time.Second)
+				s.followList(s.relayUrls, userHexKey)
 			}
 		}
 	}()

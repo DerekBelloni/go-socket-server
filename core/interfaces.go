@@ -4,9 +4,9 @@ import "github.com/DerekBelloni/go-socket-server/data"
 
 type RelayConnector interface {
 	GetConnection(relayUrl string) (chan []byte, chan string, error)
-	GetUserMetadata(relayUrl string, userHexKey string, metadataFinished chan<- string)
-	GetUserNotes(relayUrl string, userHexKey string, notesFinished chan<- string)
-	GetFollowList(relayUrl string, userHexKey string, followsFinished chan<- string)
+	GetUserMetadata(relayUrl string, userHexKey string)
+	GetUserNotes(relayUrl string, userHexKey string)
+	GetFollowList(relayUrl string, userHexKey string)
 	GetFollowListMetadata(relayUrl string, userHexKey string, pubKeys []string, subscriptionTracker SubscriptionTracker)
 	GetSearchedAuthorMetadata(relayUrl string, authorPubKey string, searchKey string, subscriptionTracker SubscriptionTracker)
 	RetrieveSearch(relayUrl string, search string, subscriptionTracker SubscriptionTracker, uuid string, pubkey string)

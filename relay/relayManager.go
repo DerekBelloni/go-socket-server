@@ -89,12 +89,14 @@ func (rm *RelayManager) createNewConnection(relayUrl string) (chan []byte, chan 
 	readChan := make(chan []byte, 1000)
 	writeChan := make(chan []byte)
 
+	rm.mutex.Lock()
 	rm.eventChans[relayUrl] = eventChan
 	rm.readChans[relayUrl] = readChan
 	rm.writeChans[relayUrl] = writeChan
 	rm.connections[relayUrl] = conn
 	rm.contexts[relayUrl] = ctx
 	rm.cancelFuncs[relayUrl] = cancel
+	rm.mutex.Unlock()
 
 	go rm.writeLoop(ctx, conn, relayUrl, writeChan)
 	go rm.readLoop(ctx, conn, relayUrl, readChan)

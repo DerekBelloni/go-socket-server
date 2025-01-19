@@ -21,33 +21,33 @@ func (rc *RelayConnection) GetConnection(relayUrl string) (chan []byte, chan str
 	return rc.relayManager.GetConnection(relayUrl)
 }
 
-func (rc *RelayConnection) GetUserMetadata(relayUrl string, userHexKey string, metadataFinished chan<- string) {
+func (rc *RelayConnection) GetUserMetadata(relayUrl string, userHexKey string) {
 	writeChan, eventChan, err := rc.GetConnection(relayUrl)
 
 	if err != nil {
 		fmt.Printf("Dial error: %v\n", err)
 	}
 
-	subscriptions.MetadataSubscription(relayUrl, userHexKey, writeChan, eventChan, metadataFinished)
+	subscriptions.MetadataSubscription(relayUrl, userHexKey, writeChan, eventChan)
 }
 
-func (rc *RelayConnection) GetUserNotes(relayUrl string, userHexKey string, notesFinished chan<- string) {
+func (rc *RelayConnection) GetUserNotes(relayUrl string, userHexKey string) {
 	writeChan, eventChan, err := rc.GetConnection(relayUrl)
 	if err != nil {
 		fmt.Printf("Dial error: %v\n", err)
 	}
 
-	subscriptions.UserNotesSubscription(relayUrl, userHexKey, writeChan, eventChan, notesFinished)
+	subscriptions.UserNotesSubscription(relayUrl, userHexKey, writeChan, eventChan)
 }
 
-func (rc *RelayConnection) GetFollowList(relayUrl string, userHexKey string, followsFinished chan<- string) {
+func (rc *RelayConnection) GetFollowList(relayUrl string, userHexKey string) {
 	writeChan, eventChan, err := rc.GetConnection(relayUrl)
 
 	if err != nil {
 		fmt.Printf("Dial error: %v\n", err)
 	}
 
-	subscriptions.FollowListSubscription(relayUrl, userHexKey, writeChan, eventChan, followsFinished)
+	subscriptions.FollowListSubscription(relayUrl, userHexKey, writeChan, eventChan)
 }
 
 // add the user key context here

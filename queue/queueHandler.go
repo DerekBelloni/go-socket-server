@@ -119,7 +119,6 @@ func NotesQueue(notesEvent []interface{}, eventChan chan string, followsPubkey s
 			fmt.Printf("Error marshalling notes event into JSON: %v\n", err)
 		}
 		setQueue(queueName, notesEventJSON)
-		// eventChan <- "done"
 	} else {
 		followsEventStruct := FollowsEvent{
 			FollowsEvent: notesEvent,
@@ -132,7 +131,6 @@ func NotesQueue(notesEvent []interface{}, eventChan chan string, followsPubkey s
 	}
 }
 
-// This using the new NostrEvent which is alreadu packaged
 func NewNotesQueue(event data.EventMessage, eventChan chan string) {
 	queueName := "user_notes"
 
@@ -153,7 +151,6 @@ func FollowsMetadataQueue(metadataEvent []interface{}, userPubkey string, follow
 	setQueue(queueName, metadataEventJSON)
 }
 
-// need a seperate method for follows metadata
 func MetadataQueue(metadataEvent []interface{}, eventChan chan string) {
 	queueName := "user_metadata"
 	fmt.Printf("metadata event in queue: %v\n\n\n", metadataEvent)
@@ -162,7 +159,6 @@ func MetadataQueue(metadataEvent []interface{}, eventChan chan string) {
 		fmt.Printf("Error marshalling metadata event into JSON: %v\n", err)
 	}
 	setQueue(queueName, metadataEventJSON)
-	// eventChan <- "done"
 }
 
 func FollowListQueue(followListEvent []interface{}, eventChan chan string) {
