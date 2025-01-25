@@ -25,7 +25,7 @@ func MetadataSubscription(relayUrl string, userHexKey string, writeChan chan<- [
 	if err != nil {
 		fmt.Printf("Error generating a subscription id: %v\n", err)
 	}
-	fmt.Printf("!!!metadata subscription pubkey: %v\n\n", userHexKey)
+
 	subscriptionRequest := []interface{}{
 		"REQ",
 		subscriptionID,
@@ -72,12 +72,10 @@ func UserNotesSubscription(relayUrl string, userHexKey string, writeChan chan<- 
 	if err != nil {
 		fmt.Printf("Error marshalling subscription request: %v\n ", err)
 	}
+
 	writeChan <- subscriptionRequestJSON
-	// notes := <-eventChan
-	// if notes != "" {
-	// 	notesFinished <- relayUrl
-	// }
 }
+
 func FollowListSubscription(relayUrl string, userHexKey string, writeChan chan<- []byte, eventChan <-chan string) {
 	subscriptionID, err := generateRandomString(16)
 	if err != nil {
@@ -96,12 +94,8 @@ func FollowListSubscription(relayUrl string, userHexKey string, writeChan chan<-
 	if err != nil {
 		fmt.Printf("Error marshalling subscription request: %v\n ", err)
 	}
-	writeChan <- subscriptionRequestJSON
-	// follows := <-eventChan
 
-	// if follows != "" {
-	// 	followsFinished <- relayUrl
-	// }
+	writeChan <- subscriptionRequestJSON
 }
 
 func FollowListMetadataSubscription(relayUrl string, pubKeys []string, userHexKey string, writeChan chan<- []byte, eventChan <-chan string, subscriptionTracker core.SubscriptionTracker) {
@@ -205,6 +199,20 @@ func RetrieveSearchSubscription(relayUrl string, search string, writeChan chan<-
 
 		subscriptionTracker.AddSearch(search, uuid, subscriptionID, pubkey)
 		writeChan <- subscriptionRequestJSON
+
+		time.Sleep(5 * time.Second)
+
+		closeMessage := []interface{}{
+			"CLOSE",
+			subscriptionID,
+		}
+		closeMessageJSON, err := json.Marshal(closeMessage)
+		if err != nil {
+			fmt.Printf("Error marshalling close message: %v\n", err)
+			return
+		}
+
+		writeChan <- closeMessageJSON
 	}()
 }
 
@@ -239,4 +247,18 @@ func SearchedAuthorMetadata(relayUrl string, authorPubkey string, searchKey stri
 
 	subscriptionTracker.AddSearch("author", uuid, subscriptionID, userPubkey)
 	writeChan <- subscriptionRequestJSON
+
+	time.Sleep(5 * time.Second)
+
+	closeMessage := []interface{}{
+		"CLOSE",
+		subscriptionID,
+	}
+	closeMessageJSON, err := json.Marshal(closeMessage)
+	if err != nil {
+		fmt.Printf("Error marshalling close message: %v\n", err)
+		return
+	}
+
+	writeChan <- closeMessageJSON
 }
