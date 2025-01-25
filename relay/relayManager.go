@@ -265,6 +265,7 @@ func (rm *RelayManager) processMessage(relayMessage []interface{}, relayUrl stri
 	case "NOTICE":
 		rm.rateLimiter.Limit = rm.rateLimiter.Limit / 2
 		event.HandleNotice(relayMessage, relayUrl)
+		rm.CloseConnection(relayUrl)
 	case "EOSE":
 		event.HandleEOSE(relayMessage, relayUrl, eventChan)
 	default:
