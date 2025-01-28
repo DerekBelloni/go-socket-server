@@ -16,7 +16,7 @@ func main() {
 	relayUrls := []string{
 		"wss://relay.damus.io",
 		"wss://relay.primal.net",
-		"wss://relay.nostr.band",
+		// "wss://relay.nostr.band",
 	}
 
 	userService := user.NewService(relayConnection, relayUrls, searchTracker)

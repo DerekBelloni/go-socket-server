@@ -188,7 +188,7 @@ func RetrieveSearchSubscription(relayUrl string, search string, writeChan chan<-
 			subscriptionID,
 			map[string]interface{}{
 				"kind":   1,
-				"limit":  30,
+				"limit":  10,
 				"search": search,
 			},
 		}
@@ -254,6 +254,23 @@ func SearchedAuthorMetadata(relayUrl string, authorPubkey string, searchKey stri
 		"CLOSE",
 		subscriptionID,
 	}
+	closeMessageJSON, err := json.Marshal(closeMessage)
+	if err != nil {
+		fmt.Printf("Error marshalling close message: %v\n", err)
+		return
+	}
+
+	writeChan <- closeMessageJSON
+}
+
+func closeSubscription(subscriptionID string, writeChan chan<- []byte) {
+	time.Sleep(5 * time.Second)
+
+	closeMessage := []interface{}{
+		"CLOSE",
+		subscriptionID,
+	}
+
 	closeMessageJSON, err := json.Marshal(closeMessage)
 	if err != nil {
 		fmt.Printf("Error marshalling close message: %v\n", err)

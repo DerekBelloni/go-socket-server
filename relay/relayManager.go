@@ -151,16 +151,12 @@ func (rm *RelayManager) pingHandler(ctx context.Context, conn *websocket.Conn, r
 	for {
 		select {
 		case <-ctx.Done():
-			rm.mutex.Lock()
 			rm.CloseConnection(relayUrl)
-			rm.mutex.Unlock()
 			return
 		case <-ticker.C:
 			if err := conn.WriteControl(websocket.PingMessage, []byte{}, time.Now().Add(time.Second)); err != nil {
-				rm.mutex.Lock()
 				rm.handleConnectionError(relayUrl, err, "pingHandler")
 				rm.CloseConnection(relayUrl)
-				rm.mutex.Unlock()
 				return
 			}
 		}
