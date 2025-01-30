@@ -91,7 +91,7 @@ func setQueue(queueName string, eventJson []byte) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	fmt.Printf("queue being publsihed: %v\n\n", queueName)
+
 	err = channel.PublishWithContext(
 		ctx,
 		"",
@@ -143,7 +143,7 @@ func NewNotesQueue(event data.EventMessage, eventChan chan string) {
 
 func FollowsMetadataQueue(metadataEvent []interface{}, userPubkey string, followsPubkey string) {
 	queueName := "follows_metadata"
-	fmt.Printf("metadata event in queue: %v\n\n\n", metadataEvent)
+
 	metadataEventJSON, err := json.Marshal(metadataEvent)
 	if err != nil {
 		fmt.Printf("Error marshalling metadata event into JSON: %v\n", err)
@@ -153,7 +153,7 @@ func FollowsMetadataQueue(metadataEvent []interface{}, userPubkey string, follow
 
 func MetadataQueue(metadataEvent []interface{}, eventChan chan string) {
 	queueName := "user_metadata"
-	fmt.Printf("metadata event in queue: %v\n\n\n", metadataEvent)
+
 	metadataEventJSON, err := json.Marshal(metadataEvent)
 	if err != nil {
 		fmt.Printf("Error marshalling metadata event into JSON: %v\n", err)

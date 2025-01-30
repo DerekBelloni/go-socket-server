@@ -229,20 +229,8 @@ func SearchedAuthorMetadata(relayUrl string, authorPubkey string, searchKey stri
 
 	subscriptionTracker.AddSearch("author", uuid, subscriptionID, userPubkey)
 	writeChan <- subscriptionRequestJSON
+
 	closeSubscription(subscriptionID, writeChan)
-	// time.Sleep(5 * time.Second)
-
-	// closeMessage := []interface{}{
-	// 	"CLOSE",
-	// 	subscriptionID,
-	// }
-	// closeMessageJSON, err := json.Marshal(closeMessage)
-	// if err != nil {
-	// 	fmt.Printf("Error marshalling close message: %v\n", err)
-	// 	return
-	// }
-
-	// writeChan <- closeMessageJSON
 }
 
 func closeSubscription(subscriptionID string, writeChan chan<- []byte) {

@@ -130,7 +130,7 @@ func (rm *RelayManager) handleChannelClosue(relayUrl string) {
 		cancelFunc()
 	}
 
-	rm.CloseConnection(relayUrl)
+	// rm.CloseConnection(relayUrl)
 }
 
 func (rm *RelayManager) handleConnectionError(relayUrl string, err error, errSource string) {
@@ -155,12 +155,24 @@ func (rm *RelayManager) pingHandler(ctx context.Context, conn *websocket.Conn, r
 			return
 		case <-ticker.C:
 			if err := conn.WriteControl(websocket.PingMessage, []byte{}, time.Now().Add(time.Second)); err != nil {
-				rm.handleConnectionError(relayUrl, err, "pingHandler")
-				rm.CloseConnection(relayUrl)
+				rm.handlePingError(relayUrl, err)
 				return
 			}
 		}
 	}
+}
+
+func (rm *RelayManager) handlePingError(relayUrl string, err error) {
+	// Check if connection is still valid before proceeding
+	rm.mutex.Lock()
+	if _, exists := rm.connections[relayUrl]; !exists {
+		rm.mutex.Unlock()
+		return // Connection already closed by another goroutine
+	}
+	rm.mutex.Unlock()
+
+	rm.handleConnectionError(relayUrl, err, "pingHandler")
+	rm.CloseConnection(relayUrl)
 }
 
 func (rm *RelayManager) pongHandler(conn *websocket.Conn) error {
@@ -232,7 +244,8 @@ func (rm *RelayManager) processReadChannel(ctx context.Context, readChan <-chan 
 			return
 		case msg, ok := <-readChan:
 			if !ok {
-				rm.handleChannelClosue(relayUrl)
+				// rm.handleChannelClosue(relayUrl)
+				rm.CloseConnection(relayUrl)
 				return
 			}
 			var relayMessage []interface{}
@@ -281,7 +294,8 @@ func (rm *RelayManager) writeLoop(ctx context.Context, conn *websocket.Conn, rel
 			return
 		case msg, ok := <-writeChan:
 			if !ok {
-				rm.handleChannelClosue(relayUrl)
+				// rm.handleChannelClosue(relayUrl)
+				rm.CloseConnection(relayUrl)
 				return
 			}
 
@@ -329,6 +343,7 @@ func (rm *RelayManager) CloseConnection(relayUrl string) {
 	rm.mutex.Lock()
 	defer rm.mutex.Unlock()
 
+	rm.handleChannelClosue(relayUrl)
 	if relayConn, exists := rm.connections[relayUrl]; exists {
 		relayConn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""), time.Now().Add(time.Second))
 		relayConn.Close()

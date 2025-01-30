@@ -34,10 +34,6 @@ func NewService(relayConnection *relay.RelayConnection, relayUrls []string, sear
 	}
 }
 
-// func createUserContext(userHexKey string) (context.Context, context.CancelFunc) {
-// 	return context.WithCancel(context.WithValue(context.Background(), "userPubKey", userHexKey))
-// }
-
 func (s *Service) checkAndUpdateUUID(userHexKey string, uuid string, search string) bool {
 	s.pubKeyUUIDLock.Lock()
 	defer s.pubKeyUUIDLock.Unlock()
@@ -49,7 +45,6 @@ func (s *Service) checkAndUpdateUUID(userHexKey string, uuid string, search stri
 		key = search
 	}
 
-	// this needs to be updated because if a logged in user does multiple searches it will return false because it will match on their pubkey
 	existingUUID, exists := s.pubKeyUUID[key]
 	if exists && existingUUID == uuid {
 		return false
