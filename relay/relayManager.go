@@ -32,6 +32,7 @@ type RelayManager struct {
 	writeChans    map[string]chan []byte
 	contexts      map[string]context.Context
 	cancelFuncs   map[string]context.CancelFunc
+	rateLimiters  map[string]*rateLimiter.RateLimiter
 	Connector     core.RelayConnector
 	SearchTracker core.SubscriptionTracker
 	rateLimiter   *rateLimiter.RateLimiter
@@ -46,6 +47,7 @@ func NewRelayManager(connector core.RelayConnector, searchTracker core.Subscript
 		writeChans:    make(map[string]chan []byte),
 		contexts:      make(map[string]context.Context),
 		cancelFuncs:   make(map[string]context.CancelFunc),
+		rateLimiters:  make(map[string]*rateLimiter.RateLimiter),
 		SearchTracker: searchTracker,
 		Connector:     connector,
 		rateLimiter:   rateLimiter.NewRateLimiter(2*time.Second, 5),
@@ -163,11 +165,10 @@ func (rm *RelayManager) pingHandler(ctx context.Context, conn *websocket.Conn, r
 }
 
 func (rm *RelayManager) handlePingError(relayUrl string, err error) {
-	// Check if connection is still valid before proceeding
 	rm.mutex.Lock()
 	if _, exists := rm.connections[relayUrl]; !exists {
 		rm.mutex.Unlock()
-		return // Connection already closed by another goroutine
+		return
 	}
 	rm.mutex.Unlock()
 
@@ -294,7 +295,6 @@ func (rm *RelayManager) writeLoop(ctx context.Context, conn *websocket.Conn, rel
 			return
 		case msg, ok := <-writeChan:
 			if !ok {
-				// rm.handleChannelClosue(relayUrl)
 				rm.CloseConnection(relayUrl)
 				return
 			}
@@ -321,12 +321,15 @@ func (rm *RelayManager) writeLoop(ctx context.Context, conn *websocket.Conn, rel
 func (rm *RelayManager) deleteRelayChannels(relayUrl string) {
 	if eventChan, exists := rm.eventChans[relayUrl]; exists {
 		close(eventChan)
+		delete(rm.eventChans, relayUrl)
 	}
 	if readChan, exists := rm.readChans[relayUrl]; exists {
 		close(readChan)
+		delete(rm.readChans, relayUrl)
 	}
 	if writeChan, exists := rm.writeChans[relayUrl]; exists {
 		close(writeChan)
+		delete(rm.writeChans, relayUrl)
 	}
 }
 
@@ -341,35 +344,51 @@ func (rm *RelayManager) deleteRelayMappings(relayUrl string) {
 
 func (rm *RelayManager) CloseConnection(relayUrl string) {
 	rm.mutex.Lock()
-	defer rm.mutex.Unlock()
 
-	rm.handleChannelClosue(relayUrl)
+	if _, exists := rm.connections[relayUrl]; !exists {
+		return
+	}
+
+	if cancel, exists := rm.cancelFuncs[relayUrl]; exists {
+		cancel()
+	}
+
+	rm.mutex.Lock()
 	if relayConn, exists := rm.connections[relayUrl]; exists {
 		relayConn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""), time.Now().Add(time.Second))
 		relayConn.Close()
-		rm.deleteRelayMappings(relayUrl)
-		rm.deleteRelayChannels(relayUrl)
-		rm.attemptReconnect(relayUrl)
+		rm.mutex.Unlock()
 	}
+	rm.mutex.Unlock()
+
+	rm.deleteRelayMappings(relayUrl)
+	rm.deleteRelayChannels(relayUrl)
+	rm.attemptReconnect(relayUrl)
+	fmt.Println("finished close connection functionality")
 }
 
 func (rm *RelayManager) attemptReconnect(relayUrl string) error {
+	time.Sleep(1 * time.Second)
 	maxRetries := 3
-	baseDelay := 1 * time.Second
-	var lastError error
 
+	fmt.Println("in attempt reconnect")
 	for i := 0; i < maxRetries; i++ {
+		rm.mutex.Lock()
+
+		if _, exists := rm.connections[relayUrl]; exists {
+			rm.mutex.Unlock()
+			return nil
+		}
+		rm.mutex.Unlock()
 		if _, _, err := rm.createNewConnection(relayUrl); err == nil {
 			fmt.Printf("Socket reconnected for relay: %v\n", relayUrl)
 			return nil
-		} else {
-			delay := time.Duration(math.Min(60.0, math.Pow(2, float64(i)))) * baseDelay
-			fmt.Printf("Retry %d failed, retrying in %v: %v\n", i+1, delay, err)
-			time.Sleep(delay)
-			lastError = err
 		}
+
+		delay := time.Duration(math.Pow(2, float64(i))) * time.Second
+		time.Sleep(delay)
 	}
-	return fmt.Errorf("failed to reconnect after %d attempts: %w", maxRetries, lastError)
+	return fmt.Errorf("failed to reconnect after %d attempts", maxRetries)
 }
 
 func (rm *RelayManager) isConnected(relayUrl string) bool {
