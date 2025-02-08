@@ -8,6 +8,7 @@ import (
 	"io"
 	"log"
 	"math"
+	"net"
 	"net/http"
 	"sync"
 	"time"
@@ -123,18 +124,6 @@ func (rm *RelayManager) createConnection(relayUrl string) (*websocket.Conn, erro
 	return conn, nil
 }
 
-func (rm *RelayManager) handleChannelClosue(relayUrl string) {
-	rm.mutex.Lock()
-	cancelFunc, exists := rm.cancelFuncs[relayUrl]
-	rm.mutex.Unlock()
-
-	if exists {
-		cancelFunc()
-	}
-
-	// rm.CloseConnection(relayUrl)
-}
-
 func (rm *RelayManager) handleConnectionError(relayUrl string, err error, errSource string) {
 	switch {
 	case websocket.IsUnexpectedCloseError(err):
@@ -156,7 +145,11 @@ func (rm *RelayManager) pingHandler(ctx context.Context, conn *websocket.Conn, r
 			rm.CloseConnection(relayUrl)
 			return
 		case <-ticker.C:
-			if err := conn.WriteControl(websocket.PingMessage, []byte{}, time.Now().Add(time.Second)); err != nil {
+			if err := conn.WriteControl(websocket.PingMessage, []byte{}, time.Now().Add(pongWait)); err != nil {
+				netErr, isNetErr := err.(net.Error)
+				if isNetErr {
+					log.Printf("Network error details for %s: timeout=%v", relayUrl, netErr.Timeout())
+				}
 				rm.handlePingError(relayUrl, err)
 				return
 			}
@@ -172,8 +165,8 @@ func (rm *RelayManager) handlePingError(relayUrl string, err error) {
 	}
 	rm.mutex.Unlock()
 
-	rm.handleConnectionError(relayUrl, err, "pingHandler")
 	rm.CloseConnection(relayUrl)
+	rm.handleConnectionError(relayUrl, err, "pingHandler")
 }
 
 func (rm *RelayManager) pongHandler(conn *websocket.Conn) error {
@@ -224,7 +217,6 @@ func (rm *RelayManager) readLoop(ctx context.Context, conn *websocket.Conn, rela
 				}
 				select {
 				case readChan <- message:
-					// log.Printf("Message sent to readChan successfully")
 				default:
 					var msg []interface{}
 					_ = json.Unmarshal(message, &msg)
@@ -343,15 +335,15 @@ func (rm *RelayManager) deleteRelayMappings(relayUrl string) {
 }
 
 func (rm *RelayManager) CloseConnection(relayUrl string) {
-	rm.mutex.Lock()
-
 	if _, exists := rm.connections[relayUrl]; !exists {
 		return
 	}
 
+	rm.mutex.Lock()
 	if cancel, exists := rm.cancelFuncs[relayUrl]; exists {
 		cancel()
 	}
+	rm.mutex.Unlock()
 
 	rm.mutex.Lock()
 	if relayConn, exists := rm.connections[relayUrl]; exists {
@@ -364,6 +356,7 @@ func (rm *RelayManager) CloseConnection(relayUrl string) {
 	rm.deleteRelayMappings(relayUrl)
 	rm.deleteRelayChannels(relayUrl)
 	rm.attemptReconnect(relayUrl)
+
 	fmt.Println("finished close connection functionality")
 }
 
@@ -383,6 +376,8 @@ func (rm *RelayManager) attemptReconnect(relayUrl string) error {
 		if _, _, err := rm.createNewConnection(relayUrl); err == nil {
 			fmt.Printf("Socket reconnected for relay: %v\n", relayUrl)
 			return nil
+		} else {
+			fmt.Printf("Socket could not reconnect for relay: %v, err: %v\n", relayUrl, err)
 		}
 
 		delay := time.Duration(math.Pow(2, float64(i))) * time.Second

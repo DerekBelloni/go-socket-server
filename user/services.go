@@ -307,6 +307,30 @@ func (s *Service) StartSearchQueue() {
 	<-forever
 }
 
+func (s *Service) StartEmbeddedEntityQueue() {
+	forever := make(chan struct{})
+
+	queueName := "embedded_entity"
+
+	msgs, channel, conn, err := queue.ConsumeQueue(queueName)
+	if err != nil {
+		fmt.Printf("Error consuming message from the %v queue, %v\n", queueName, err)
+	}
+
+	defer channel.Close()
+	defer conn.Close()
+
+	go func() {
+		for {
+			for d := range msgs {
+				fmt.Printf("d: %v", string(d.Body))
+			}
+		}
+	}()
+
+	<-forever
+}
+
 func (s *Service) StartFollowsNotesQueue() {
 	forever := make(chan struct{})
 
@@ -314,7 +338,7 @@ func (s *Service) StartFollowsNotesQueue() {
 
 	msgs, channel, conn, err := queue.ConsumeQueue(queueName)
 	if err != nil {
-		fmt.Printf("Error conusming message from the %v queue, %v\n", queueName, err)
+		fmt.Printf("Error consuming message from the %v queue, %v\n", queueName, err)
 	}
 
 	defer channel.Close()
