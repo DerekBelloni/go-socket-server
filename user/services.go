@@ -25,6 +25,13 @@ type Service struct {
 	pubKeyUUIDLock      sync.RWMutex
 }
 
+type Entity struct {
+	Hex        string `json:"hex"`
+	Identifier string `json:"identifier"`
+	ID         string `json:"id"`
+	UUID       string `json:"uuid"`
+}
+
 func NewService(relayConnection *relay.RelayConnection, relayUrls []string, searchTracker *search.SearchTrackerImpl) *Service {
 	return &Service{
 		relayConnection:     relayConnection,
@@ -85,6 +92,14 @@ func (s *Service) followsNotes(userPubKey string, followPubKey string, uuid stri
 	for _, relayUrl := range s.relayUrls {
 		go func(relayUrl string) {
 			s.relayConnection.GetFollowsNotes(relayUrl, userPubKey, followPubKey, s.subscriptionTracker, uuid)
+		}(relayUrl)
+	}
+}
+
+func (s *Service) retrieveEmbeddedEntity(hex string, identifier string, id string, uuid string) {
+	for _, relayUrl := range s.relayUrls {
+		go func(relayUrl string) {
+			s.relayConnection.RetrieveEmbeddedEntity(hex, identifier, id, relayUrl, uuid)
 		}(relayUrl)
 	}
 }
@@ -309,8 +324,7 @@ func (s *Service) StartSearchQueue() {
 
 func (s *Service) StartEmbeddedEntityQueue() {
 	forever := make(chan struct{})
-
-	queueName := "embedded_entity"
+	queueName := "nostr_entity"
 
 	msgs, channel, conn, err := queue.ConsumeQueue(queueName)
 	if err != nil {
@@ -323,7 +337,19 @@ func (s *Service) StartEmbeddedEntityQueue() {
 	go func() {
 		for {
 			for d := range msgs {
-				fmt.Printf("d: %v", string(d.Body))
+				var entityData Entity
+
+				if err := json.Unmarshal(d.Body, &entityData); err != nil {
+					fmt.Printf("Error unmarshalling message body into entity struct\n")
+					continue
+				}
+
+				hex := entityData.Hex
+				identifier := entityData.Identifier
+				id := entityData.ID
+				uuid := entityData.UUID
+
+				s.retrieveEmbeddedEntity(hex, identifier, id, uuid)
 			}
 		}
 	}()

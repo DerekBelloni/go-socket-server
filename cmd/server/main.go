@@ -16,7 +16,7 @@ func main() {
 	relayUrls := []string{
 		"wss://relay.damus.io",
 		"wss://relay.primal.net",
-		// "wss://relay.nostr.band",
+		"wss://relay.nostr.band",
 	}
 
 	userService := user.NewService(relayConnection, relayUrls, searchTracker)
@@ -26,6 +26,7 @@ func main() {
 	go userService.StartCreateNoteQueue()
 	go userService.StartSearchQueue()
 	go userService.StartFollowsNotesQueue()
+	go userService.StartEmbeddedEntityQueue()
 
 	var forever chan struct{}
 	<-forever

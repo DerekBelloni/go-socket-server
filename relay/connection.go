@@ -97,3 +97,7 @@ func (rc *RelayConnection) RetrieveSearch(relayUrl string, search string, subscr
 	}
 	subscriptions.RetrieveSearchSubscription(relayUrl, search, writeChan, eventChan, subscriptionTracker, uuid, pubkey)
 }
+
+func (rc *RelayConnection) RetrieveEmbeddedEntity(hex string, identifier string, id string, relayUrl string, uuid string) {
+
+}
