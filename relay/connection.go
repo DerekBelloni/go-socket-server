@@ -98,6 +98,10 @@ func (rc *RelayConnection) RetrieveSearch(relayUrl string, search string, subscr
 	subscriptions.RetrieveSearchSubscription(relayUrl, search, writeChan, eventChan, subscriptionTracker, uuid, pubkey)
 }
 
-func (rc *RelayConnection) RetrieveEmbeddedEntity(hex string, identifier string, id string, relayUrl string, uuid string) {
-
+func (rc *RelayConnection) RetrieveEmbeddedEntity(hex string, identifier string, id string, relayUrl string, uuid string, subscriptionTracker core.SubscriptionTracker) {
+	writeChan, eventChan, err := rc.GetConnection(relayUrl)
+	if err != nil {
+		fmt.Printf("Dial error: %v, method: %v\n", err, "retrieveEmeddedEntity")
+	}
+	subscriptions.RetrieveEmbeddedEntity(hex, identifier, id, relayUrl, uuid, writeChan, eventChan, subscriptionTracker)
 }

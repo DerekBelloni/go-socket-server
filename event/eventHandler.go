@@ -73,6 +73,44 @@ func PackageEvent(eventData []interface{}, userPubkey string, eventType string, 
 	return message
 }
 
+func delegateKindOne(eventData []interface{}, eventChan chan string, connector core.RelayConnector, relayUrl string, subscriptionTracker core.SubscriptionTracker, content map[string]interface{}) {
+	searchKey, searchKeyExists := subscriptionTracker.InSearchEvent(eventData, "1")
+	subscriptionPubkey, subscriptionExists := subscriptionTracker.InSubscriptionMapping(eventData)
+
+	if !searchKeyExists && !subscriptionExists {
+		queue.NotesQueue(eventData, eventChan, "")
+	} else if !searchKeyExists && subscriptionExists {
+		eventMessage := PackageEvent(eventData, subscriptionPubkey, "follows", "")
+		queue.NewNotesQueue(eventMessage, eventChan)
+	} else {
+		authorPubkey := ExtractAuthorsPubkey(content)
+		for _, relayUrl := range callbackRelays {
+			go func(relayUrl string) {
+				connector.GetSearchedAuthorMetadata(relayUrl, authorPubkey, searchKey, subscriptionTracker)
+			}(relayUrl)
+		}
+		queue.SearchQueue(eventData, searchKey, eventChan)
+	}
+}
+
+func delegateKindZero(eventData []interface{}, eventChan chan string, relayUrl string, subscriptionTracker core.SubscriptionTracker) {
+	searchKey, searchKeyExists := subscriptionTracker.InSearchEvent(eventData, "0")
+	userPubkey, followsPubkey, subscriptionType, followsMetadataExists := subscriptionTracker.InFollowsMetadtaMapping(eventData)
+	fmt.Printf("subscriptionType: %v\n", subscriptionType)
+	if subscriptionType == "profile-entity" {
+		fmt.Printf("embedded entity event data: %v\n", eventData)
+		// queue.NostrEntityQueue(eventData,)
+	}
+
+	if !searchKeyExists && !followsMetadataExists {
+		queue.MetadataQueue(eventData, eventChan)
+	} else if !searchKeyExists && followsMetadataExists && subscriptionType == "followsMetadata" {
+		queue.FollowsMetadataQueue(eventData, userPubkey, followsPubkey)
+	} else {
+		queue.AuthorMetadataQueue(eventData, searchKey)
+	}
+}
+
 func HandleEvent(eventData []interface{}, eventChan chan string, connector core.RelayConnector, relayUrl string, subscriptionTracker core.SubscriptionTracker) {
 	content, ok := eventData[2].(map[string]interface{})
 	if !ok {
@@ -87,34 +125,42 @@ func HandleEvent(eventData []interface{}, eventChan chan string, connector core.
 
 	switch kind {
 	case 0:
-		searchKey, searchKeyExists := subscriptionTracker.InSearchEvent(eventData, "0")
+		delegateKindZero(eventData, eventChan, relayUrl, subscriptionTracker)
+		// searchKey, searchKeyExists := subscriptionTracker.InSearchEvent(eventData, "0")
 
-		userPubkey, followsPubkey, subscriptionType, followsMetadataExists := subscriptionTracker.InFollowsMetadtaMapping(eventData)
-		if !searchKeyExists && !followsMetadataExists {
-			queue.MetadataQueue(eventData, eventChan)
-		} else if !searchKeyExists && followsMetadataExists && subscriptionType == "followsMetadata" {
-			queue.FollowsMetadataQueue(eventData, userPubkey, followsPubkey)
-		} else {
-			queue.AuthorMetadataQueue(eventData, searchKey)
-		}
+		// userPubkey, followsPubkey, subscriptionType, followsMetadataExists := subscriptionTracker.InFollowsMetadtaMapping(eventData)
+		// fmt.Printf("subscriptionType: %v\n", subscriptionType)
+		// if subscriptionType == "profile-entity" {
+		// 	fmt.Printf("embedded entity event data: %v\n", eventData)
+		// 	// queue.NostrEntityQueue(eventData,)
+		// }
+
+		// if !searchKeyExists && !followsMetadataExists {
+		// 	queue.MetadataQueue(eventData, eventChan)
+		// } else if !searchKeyExists && followsMetadataExists && subscriptionType == "followsMetadata" {
+		// 	queue.FollowsMetadataQueue(eventData, userPubkey, followsPubkey)
+		// } else {
+		// 	queue.AuthorMetadataQueue(eventData, searchKey)
+		// }
 	case 1:
-		searchKey, searchKeyExists := subscriptionTracker.InSearchEvent(eventData, "1")
-		subscriptionPubkey, subscriptionExists := subscriptionTracker.InSubscriptionMapping(eventData)
+		delegateKindOne(eventData, eventChan, connector, relayUrl, subscriptionTracker, content)
+		// searchKey, searchKeyExists := subscriptionTracker.InSearchEvent(eventData, "1")
+		// subscriptionPubkey, subscriptionExists := subscriptionTracker.InSubscriptionMapping(eventData)
 
-		if !searchKeyExists && !subscriptionExists {
-			queue.NotesQueue(eventData, eventChan, "")
-		} else if !searchKeyExists && subscriptionExists {
-			eventMessage := PackageEvent(eventData, subscriptionPubkey, "follows", "")
-			queue.NewNotesQueue(eventMessage, eventChan)
-		} else {
-			authorPubkey := ExtractAuthorsPubkey(content)
-			for _, relayUrl := range callbackRelays {
-				go func(relayUrl string) {
-					connector.GetSearchedAuthorMetadata(relayUrl, authorPubkey, searchKey, subscriptionTracker)
-				}(relayUrl)
-			}
-			queue.SearchQueue(eventData, searchKey, eventChan)
-		}
+		// if !searchKeyExists && !subscriptionExists {
+		// 	queue.NotesQueue(eventData, eventChan, "")
+		// } else if !searchKeyExists && subscriptionExists {
+		// 	eventMessage := PackageEvent(eventData, subscriptionPubkey, "follows", "")
+		// 	queue.NewNotesQueue(eventMessage, eventChan)
+		// } else {
+		// 	authorPubkey := ExtractAuthorsPubkey(content)
+		// 	for _, relayUrl := range callbackRelays {
+		// 		go func(relayUrl string) {
+		// 			connector.GetSearchedAuthorMetadata(relayUrl, authorPubkey, searchKey, subscriptionTracker)
+		// 		}(relayUrl)
+		// 	}
+		// 	queue.SearchQueue(eventData, searchKey, eventChan)
+		// }
 	case 3:
 		queue.FollowListQueue(eventData, eventChan)
 	}

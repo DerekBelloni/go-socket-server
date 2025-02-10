@@ -6,6 +6,7 @@ import (
 )
 
 type SubscriptionInfo struct {
+	UUID          string
 	UserPubkey    string
 	FollowsPubkey string
 	Type          string
@@ -93,8 +94,10 @@ func (st *SearchTrackerImpl) InSubscriptionMapping(event []interface{}) (string,
 	return subscriptionPubkey, pubKeyExists
 }
 
-func (st *SearchTrackerImpl) FollowsMetadataSubscription(subscriptionID string, followsPubkey string, userPubkey string, subscriptionType string) {
+// I need to pivot to using this format exclusively
+func (st *SearchTrackerImpl) FollowsMetadataSubscription(subscriptionID string, followsPubkey string, userPubkey string, subscriptionType string, uuid string) {
 	subscriptionInfoStruct := SubscriptionInfo{
+		UUID:          uuid,
 		UserPubkey:    userPubkey,
 		FollowsPubkey: followsPubkey,
 		Type:          subscriptionType,

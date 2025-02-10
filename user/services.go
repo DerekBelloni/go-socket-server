@@ -26,8 +26,8 @@ type Service struct {
 }
 
 type Entity struct {
-	Hex        string `json:"hex"`
-	Identifier string `json:"identifier"`
+	Hex        string `json:"nostr_entity"`
+	Identifier string `json:"type"`
 	ID         string `json:"id"`
 	UUID       string `json:"uuid"`
 }
@@ -99,7 +99,7 @@ func (s *Service) followsNotes(userPubKey string, followPubKey string, uuid stri
 func (s *Service) retrieveEmbeddedEntity(hex string, identifier string, id string, uuid string) {
 	for _, relayUrl := range s.relayUrls {
 		go func(relayUrl string) {
-			s.relayConnection.RetrieveEmbeddedEntity(hex, identifier, id, relayUrl, uuid)
+			s.relayConnection.RetrieveEmbeddedEntity(hex, identifier, id, relayUrl, uuid, s.subscriptionTracker)
 		}(relayUrl)
 	}
 }
@@ -344,10 +344,13 @@ func (s *Service) StartEmbeddedEntityQueue() {
 					continue
 				}
 
+				fmt.Printf("entity: %v\n", string(d.Body))
 				hex := entityData.Hex
 				identifier := entityData.Identifier
 				id := entityData.ID
 				uuid := entityData.UUID
+
+				fmt.Printf("in services: %v\n", identifier)
 
 				s.retrieveEmbeddedEntity(hex, identifier, id, uuid)
 			}

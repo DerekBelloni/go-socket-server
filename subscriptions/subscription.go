@@ -20,8 +20,44 @@ func generateRandomString(length int) (string, error) {
 	return hex.EncodeToString(bytes), nil
 }
 
-func RetrieveEmbeddedEntity(relayUrl string, writeChan chan<- []byte, eventChan <-chan string) {
+func determineEntityKind(identifier string) int {
+	fmt.Printf("identifier: %v\n", identifier)
+	switch identifier {
+	case "note":
+		return 1
+	case "npub":
+		return 0
+	case "nprofile":
+		return 0
+	default:
+		return -1
+	}
+}
 
+func RetrieveEmbeddedEntity(hex string, identifier string, id string, relayUrl string, uuid string, writeChan chan<- []byte, eventChan <-chan string, subscriptionTracker core.SubscriptionTracker) {
+	subscriptionID, err := generateRandomString(16)
+	if err != nil {
+		fmt.Printf("Error generating a subscription id: %v\n", err)
+	}
+	kind := determineEntityKind(identifier)
+	fmt.Printf("entity kind: %v\n", kind)
+
+	subscriptionRequest := []interface{}{
+		"REQ",
+		subscriptionID,
+		map[string]interface{}{
+			"kinds":   []int{kind},
+			"authors": []string{hex},
+		},
+	}
+	subscriptionRequestJSON, err := json.Marshal(subscriptionRequest)
+	if err != nil {
+		fmt.Printf("Error marshalling embedded entity subscription request")
+	}
+	writeChan <- subscriptionRequestJSON
+	subscriptionType := "profile-entity"
+	subscriptionTracker.FollowsMetadataSubscription(subscriptionID, "test", "", subscriptionType, uuid)
+	closeSubscription(subscriptionID, writeChan)
 }
 
 func MetadataSubscription(relayUrl string, userHexKey string, writeChan chan<- []byte, eventChan <-chan string) {
@@ -114,7 +150,7 @@ func FollowListMetadataSubscription(relayUrl string, pubKeys []string, userHexKe
 		fmt.Printf("Error marshalling subscription request: %v\n ", err)
 	}
 	subscriptionType := "followsMetadata"
-	subscriptionTracker.FollowsMetadataSubscription(subscriptionID, "test", userHexKey, subscriptionType)
+	subscriptionTracker.FollowsMetadataSubscription(subscriptionID, "test", userHexKey, subscriptionType, "")
 	writeChan <- subscriptionRequestJSON
 
 	closeSubscription(subscriptionID, writeChan)
