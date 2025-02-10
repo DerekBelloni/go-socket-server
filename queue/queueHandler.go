@@ -198,4 +198,6 @@ func AuthorMetadataQueue(metadataEvent []interface{}, searchKey string) {
 	setQueue(queueName, searchEventJSON)
 }
 
-func NostrEntityQueue(entityEvent []interface{})
+func NostrEntityQueue(entityEvent []interface{}) {
+
+}
