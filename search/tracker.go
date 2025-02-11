@@ -60,6 +60,8 @@ func (st *SearchTrackerImpl) InFollowsMetadtaMapping(event []interface{}) (strin
 
 	subscriptionInfo := st.newSubscriptionTracker[subscriptionID]
 
+	fmt.Printf("aubacription info: %v\n", subscriptionInfo)
+
 	userPubkey := subscriptionInfo.UserPubkey
 	followsPubkey := subscriptionInfo.FollowsPubkey
 	susbscriptionType := subscriptionInfo.Type

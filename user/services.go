@@ -97,6 +97,7 @@ func (s *Service) followsNotes(userPubKey string, followPubKey string, uuid stri
 }
 
 func (s *Service) retrieveEmbeddedEntity(hex string, identifier string, id string, uuid string) {
+	fmt.Printf("test %v\n", 123)
 	for _, relayUrl := range s.relayUrls {
 		go func(relayUrl string) {
 			s.relayConnection.RetrieveEmbeddedEntity(hex, identifier, id, relayUrl, uuid, s.subscriptionTracker)
@@ -331,6 +332,7 @@ func (s *Service) StartEmbeddedEntityQueue() {
 		fmt.Printf("Error consuming message from the %v queue, %v\n", queueName, err)
 	}
 
+	fmt.Println("tomato")
 	defer channel.Close()
 	defer conn.Close()
 

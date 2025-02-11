@@ -10,6 +10,11 @@ import (
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
+type EntityEvent struct {
+
+}
+
+
 type SearchEvent struct {
 	Event     []interface{}
 	SearchKey string
@@ -199,5 +204,7 @@ func AuthorMetadataQueue(metadataEvent []interface{}, searchKey string) {
 }
 
 func NostrEntityQueue(entityEvent []interface{}) {
+	//queueName := "nostr_queue"
+
 
 }
