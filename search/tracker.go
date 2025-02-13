@@ -60,7 +60,7 @@ func (st *SearchTrackerImpl) InFollowsMetadtaMapping(event []interface{}) (strin
 
 	subscriptionInfo := st.newSubscriptionTracker[subscriptionID]
 
-	fmt.Printf("aubacription info: %v\n", subscriptionInfo)
+	fmt.Printf("subscription info: %v\n", subscriptionInfo)
 
 	userPubkey := subscriptionInfo.UserPubkey
 	followsPubkey := subscriptionInfo.FollowsPubkey
@@ -98,6 +98,14 @@ func (st *SearchTrackerImpl) InSubscriptionMapping(event []interface{}) (string,
 
 // I need to pivot to using this format exclusively
 func (st *SearchTrackerImpl) FollowsMetadataSubscription(subscriptionID string, followsPubkey string, userPubkey string, subscriptionType string, uuid string) {
+	if userPubkey == "" {
+		userPubkey = "none"
+	}
+
+	if uuid == "" {
+		uuid = "none"
+	}
+
 	subscriptionInfoStruct := SubscriptionInfo{
 		UUID:          uuid,
 		UserPubkey:    userPubkey,
