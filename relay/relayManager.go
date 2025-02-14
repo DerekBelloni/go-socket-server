@@ -306,7 +306,7 @@ func (rm *RelayManager) writeLoop(ctx context.Context, conn *websocket.Conn, rel
 				return
 			}
 		}
-		time.Sleep(100 * time.Millisecond)
+		// time.Sleep(100 * time.Millisecond)
 	}
 }
 
@@ -335,9 +335,12 @@ func (rm *RelayManager) deleteRelayMappings(relayUrl string) {
 }
 
 func (rm *RelayManager) CloseConnection(relayUrl string) {
+	rm.mutex.Lock()
 	if _, exists := rm.connections[relayUrl]; !exists {
+		rm.mutex.Unlock()
 		return
 	}
+	rm.mutex.Unlock()
 
 	rm.mutex.Lock()
 	if cancel, exists := rm.cancelFuncs[relayUrl]; exists {
@@ -349,7 +352,6 @@ func (rm *RelayManager) CloseConnection(relayUrl string) {
 	if relayConn, exists := rm.connections[relayUrl]; exists {
 		relayConn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""), time.Now().Add(time.Second))
 		relayConn.Close()
-		rm.mutex.Unlock()
 	}
 	rm.mutex.Unlock()
 
@@ -372,8 +374,11 @@ func (rm *RelayManager) attemptReconnect(relayUrl string) error {
 			rm.mutex.Unlock()
 			return nil
 		}
+		_, _, err := rm.createNewConnection(relayUrl)
+
 		rm.mutex.Unlock()
-		if _, _, err := rm.createNewConnection(relayUrl); err == nil {
+
+		if err == nil {
 			fmt.Printf("Socket reconnected for relay: %v\n", relayUrl)
 			return nil
 		} else {

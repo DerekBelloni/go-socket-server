@@ -11,9 +11,8 @@ import (
 )
 
 type EntityEvent struct {
-
+	Event []interface{}
 }
-
 
 type SearchEvent struct {
 	Event     []interface{}
@@ -205,6 +204,5 @@ func AuthorMetadataQueue(metadataEvent []interface{}, searchKey string) {
 
 func NostrEntityQueue(entityEvent []interface{}) {
 	//queueName := "nostr_queue"
-
 
 }
