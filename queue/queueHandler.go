@@ -10,8 +10,12 @@ import (
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
+// these structs can go live in their own file
 type EntityEvent struct {
-	Event []interface{}
+	Event      []interface{}
+	EventID    string
+	Identifier string
+	UUID       string
 }
 
 type SearchEvent struct {
@@ -107,6 +111,7 @@ func setQueue(queueName string, eventJson []byte) {
 			Body:        []byte(eventJson),
 		})
 
+	fmt.Println("Here!!")
 	if err != nil {
 		fmt.Printf("Error publishing relay event to queue: %v\n", err)
 	} else {
@@ -197,13 +202,22 @@ func AuthorMetadataQueue(metadataEvent []interface{}, searchKey string) {
 	}
 	searchEventJSON, err := json.Marshal(searchEvent)
 	if err != nil {
-		fmt.Printf("Error marshalling search event into JSONL %v\n", err)
+		fmt.Printf("Error marshalling search event into JSON: %v\n", err)
 	}
 	setQueue(queueName, searchEventJSON)
 }
 
-func NostrEntityQueue(entityEvent []interface{}) {
-	// queueName := "nostr_queue"
-	// searchEvent := Search
-
+func NostrEntityQueue(eventId string, entityEvent []interface{}, identifier string, uuid string) {
+	queueName := "nostr_entities"
+	nostrEntityEvent := EntityEvent{
+		Event:      entityEvent,
+		EventID:    eventId,
+		Identifier: identifier,
+		UUID:       uuid,
+	}
+	nostrEntityEventJSON, err := json.Marshal(nostrEntityEvent)
+	if err != nil {
+		fmt.Printf("Error marshalling nostr entity even into JSON: %v\n", err)
+	}
+	setQueue(queueName, nostrEntityEventJSON)
 }

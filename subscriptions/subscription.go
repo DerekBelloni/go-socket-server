@@ -35,20 +35,39 @@ func determineEntityKind(identifier string) int {
 	}
 }
 
-func RetrieveEmbeddedEntity(hex string, identifier string, relayUrl string, uuid string, writeChan chan<- []byte, eventChan <-chan string, subscriptionTracker core.SubscriptionTracker) {
+func RetrieveEmbeddedEntity(eventId string, hex string, identifier string, relayUrl string, uuid string, writeChan chan<- []byte, eventChan <-chan string, subscriptionTracker core.SubscriptionTracker) {
+	fmt.Printf("identifier: %v\n", identifier)
+
 	subscriptionID, err := generateRandomString(16)
 	if err != nil {
 		fmt.Printf("Error generating a subscription id: %v\n", err)
 	}
 	kind := determineEntityKind(identifier)
 
+	var subscriptionFilters map[string]interface{}
+
+	if kind == 0 {
+		subscriptionFilters = map[string]interface{}{
+			"kinds":   []int{kind},
+			"authors": []string{hex},
+		}
+	} else {
+		subscriptionFilters = map[string]interface{}{
+			"kinds": []int{kind},
+			"ids":   []string{hex},
+		}
+	}
+
+	fmt.Printf("subscription filters: %v\n", subscriptionFilters)
+
 	subscriptionRequest := []interface{}{
 		"REQ",
 		subscriptionID,
-		map[string]interface{}{
-			"kinds": []int{kind},
-			"ids":   []string{hex},
-		},
+		subscriptionFilters,
+		// map[string]interface{}{
+		// 	"kinds": []int{kind},
+		// 	"ids":   []string{hex},
+		// },
 	}
 	subscriptionRequestJSON, err := json.Marshal(subscriptionRequest)
 	if err != nil {
@@ -56,7 +75,7 @@ func RetrieveEmbeddedEntity(hex string, identifier string, relayUrl string, uuid
 	}
 	writeChan <- subscriptionRequestJSON
 	subscriptionType := "entity"
-	subscriptionTracker.FollowsMetadataSubscription(subscriptionID, "test", "", subscriptionType, uuid)
+	subscriptionTracker.FollowsMetadataSubscription(subscriptionID, "", "", subscriptionType, uuid, identifier, eventId)
 	closeSubscription(subscriptionID, writeChan)
 }
 
@@ -150,7 +169,7 @@ func FollowListMetadataSubscription(relayUrl string, pubKeys []string, userHexKe
 		fmt.Printf("Error marshalling subscription request: %v\n ", err)
 	}
 	subscriptionType := "followsMetadata"
-	subscriptionTracker.FollowsMetadataSubscription(subscriptionID, "test", userHexKey, subscriptionType, "")
+	subscriptionTracker.FollowsMetadataSubscription(subscriptionID, "test", userHexKey, subscriptionType, "", "", "")
 	writeChan <- subscriptionRequestJSON
 
 	closeSubscription(subscriptionID, writeChan)

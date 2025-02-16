@@ -99,11 +99,11 @@ func (s *Service) followsNotes(userPubKey string, followPubKey string, uuid stri
 	}
 }
 
-func (s *Service) retrieveEmbeddedEntity(hex string, identifier string, uuid string) {
+func (s *Service) retrieveEmbeddedEntity(eventId string, hex string, identifier string, uuid string) {
 	fmt.Printf("test %v\n", 123)
 	for _, relayUrl := range s.relayUrls {
 		go func(relayUrl string) {
-			s.relayConnection.RetrieveEmbeddedEntity(hex, identifier, relayUrl, uuid, s.subscriptionTracker)
+			s.relayConnection.RetrieveEmbeddedEntity(eventId, hex, identifier, relayUrl, uuid, s.subscriptionTracker)
 		}(relayUrl)
 	}
 }
@@ -335,7 +335,6 @@ func (s *Service) StartEmbeddedEntityQueue() {
 		fmt.Printf("Error consuming message from the %v queue, %v\n", queueName, err)
 	}
 
-	fmt.Println("tomato")
 	defer channel.Close()
 	defer conn.Close()
 
@@ -343,7 +342,7 @@ func (s *Service) StartEmbeddedEntityQueue() {
 		for {
 			for d := range msgs {
 				var entityData Entity
-				fmt.Printf("Entity: %v\n", string(d.Body))
+
 				if err := json.Unmarshal(d.Body, &entityData); err != nil {
 					fmt.Printf("Error unmarshalling message body into entity struct\n")
 					continue
@@ -352,13 +351,10 @@ func (s *Service) StartEmbeddedEntityQueue() {
 				fmt.Printf("entity: %v\n", string(d.Body))
 				hex := entityData.Hex
 				identifier := entityData.Identifier
-				// kind := entityData.Kind
+				eventId := entityData.EventID
 				uuid := entityData.UUID
 
-				// fmt.Printf("in services: %v\n", identifier)
-
-				// s.retrieveEmbeddedEntity(hex, identifier, id, uuid)
-				s.retrieveEmbeddedEntity(hex, identifier, uuid)
+				s.retrieveEmbeddedEntity(eventId, hex, identifier, uuid)
 			}
 		}
 	}()

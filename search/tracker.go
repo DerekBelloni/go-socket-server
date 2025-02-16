@@ -6,10 +6,12 @@ import (
 )
 
 type SubscriptionInfo struct {
-	UUID          string
-	UserPubkey    string
-	FollowsPubkey string
-	Type          string
+	UUID               string
+	UserPubkey         string
+	FollowsPubkey      string
+	Type               string
+	EmbeddedIdentifier string
+	EventID            string
 }
 
 type SearchTrackerImpl struct {
@@ -48,7 +50,7 @@ func (st *SearchTrackerImpl) InSearchEvent(event []interface{}, eventKind string
 	return searchKey, searchKeyExists
 }
 
-func (st *SearchTrackerImpl) InFollowsMetadtaMapping(event []interface{}) (string, string, string, bool) {
+func (st *SearchTrackerImpl) InFollowsMetadtaMapping(event []interface{}) (string, string, string, bool, string, string, string) {
 	subscriptionID, ok := event[1].(string)
 	if !ok {
 		fmt.Println("Could not extract subscription ID from event")
@@ -59,19 +61,19 @@ func (st *SearchTrackerImpl) InFollowsMetadtaMapping(event []interface{}) (strin
 	defer st.searchTrackerUUIDLOCK.Unlock()
 
 	subscriptionInfo := st.newSubscriptionTracker[subscriptionID]
-
-	fmt.Printf("subscription info: %v\n", subscriptionInfo)
-
 	userPubkey := subscriptionInfo.UserPubkey
 	followsPubkey := subscriptionInfo.FollowsPubkey
 	susbscriptionType := subscriptionInfo.Type
+	identifier := subscriptionInfo.EmbeddedIdentifier
+	uuid := subscriptionInfo.UUID
+	eventId := subscriptionInfo.EventID
 
-	if followsPubkey != "" && userPubkey != "" && susbscriptionType == "followsMetadata" {
+	if followsPubkey != "" && userPubkey != "" && susbscriptionType == "followsMetadata" && identifier != "none" {
 		followsMetadataExists = true
 	} else {
 		followsMetadataExists = false
 	}
-	return userPubkey, followsPubkey, susbscriptionType, followsMetadataExists
+	return userPubkey, followsPubkey, susbscriptionType, followsMetadataExists, identifier, uuid, eventId
 
 }
 
@@ -97,7 +99,19 @@ func (st *SearchTrackerImpl) InSubscriptionMapping(event []interface{}) (string,
 }
 
 // I need to pivot to using this format exclusively
-func (st *SearchTrackerImpl) FollowsMetadataSubscription(subscriptionID string, followsPubkey string, userPubkey string, subscriptionType string, uuid string) {
+func (st *SearchTrackerImpl) FollowsMetadataSubscription(subscriptionID string, followsPubkey string, userPubkey string, subscriptionType string, uuid string, identifier string, eventId string) {
+	if eventId == "" {
+		eventId = "none"
+	}
+
+	if followsPubkey == "" {
+		followsPubkey = "none"
+	}
+
+	if identifier == "" {
+		identifier = "none"
+	}
+
 	if userPubkey == "" {
 		userPubkey = "none"
 	}
@@ -107,10 +121,12 @@ func (st *SearchTrackerImpl) FollowsMetadataSubscription(subscriptionID string, 
 	}
 
 	subscriptionInfoStruct := SubscriptionInfo{
-		UUID:          uuid,
-		UserPubkey:    userPubkey,
-		FollowsPubkey: followsPubkey,
-		Type:          subscriptionType,
+		UUID:               uuid,
+		UserPubkey:         userPubkey,
+		FollowsPubkey:      followsPubkey,
+		Type:               subscriptionType,
+		EmbeddedIdentifier: identifier,
+		EventID:            eventId,
 	}
 
 	if subscriptionID != "" {
