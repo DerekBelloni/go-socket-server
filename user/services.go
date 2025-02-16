@@ -26,10 +26,13 @@ type Service struct {
 }
 
 type Entity struct {
-	Hex        string `json:"nostr_entity"`
-	Identifier string `json:"type"`
-	ID         string `json:"id"`
-	UUID       string `json:"uuid"`
+	Author     string   `json:"author"`
+	Hex        string   `json:"nostr_entity"`
+	Identifier string   `json:"type"`
+	Kind       int      `json:"kind"`
+	Relays     []string `json:"relays"`
+	EventID    string   `json:"event_id"`
+	UUID       string   `json:"uuid"`
 }
 
 func NewService(relayConnection *relay.RelayConnection, relayUrls []string, searchTracker *search.SearchTrackerImpl) *Service {
@@ -96,11 +99,11 @@ func (s *Service) followsNotes(userPubKey string, followPubKey string, uuid stri
 	}
 }
 
-func (s *Service) retrieveEmbeddedEntity(hex string, identifier string, id string, uuid string) {
+func (s *Service) retrieveEmbeddedEntity(hex string, identifier string, uuid string) {
 	fmt.Printf("test %v\n", 123)
 	for _, relayUrl := range s.relayUrls {
 		go func(relayUrl string) {
-			s.relayConnection.RetrieveEmbeddedEntity(hex, identifier, id, relayUrl, uuid, s.subscriptionTracker)
+			s.relayConnection.RetrieveEmbeddedEntity(hex, identifier, relayUrl, uuid, s.subscriptionTracker)
 		}(relayUrl)
 	}
 }
@@ -340,7 +343,7 @@ func (s *Service) StartEmbeddedEntityQueue() {
 		for {
 			for d := range msgs {
 				var entityData Entity
-
+				fmt.Printf("Entity: %v\n", string(d.Body))
 				if err := json.Unmarshal(d.Body, &entityData); err != nil {
 					fmt.Printf("Error unmarshalling message body into entity struct\n")
 					continue
@@ -349,12 +352,13 @@ func (s *Service) StartEmbeddedEntityQueue() {
 				fmt.Printf("entity: %v\n", string(d.Body))
 				hex := entityData.Hex
 				identifier := entityData.Identifier
-				id := entityData.ID
+				// kind := entityData.Kind
 				uuid := entityData.UUID
 
-				fmt.Printf("in services: %v\n", identifier)
+				// fmt.Printf("in services: %v\n", identifier)
 
-				s.retrieveEmbeddedEntity(hex, identifier, id, uuid)
+				// s.retrieveEmbeddedEntity(hex, identifier, id, uuid)
+				s.retrieveEmbeddedEntity(hex, identifier, uuid)
 			}
 		}
 	}()

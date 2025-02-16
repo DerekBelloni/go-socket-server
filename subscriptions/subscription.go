@@ -21,7 +21,6 @@ func generateRandomString(length int) (string, error) {
 }
 
 func determineEntityKind(identifier string) int {
-	fmt.Printf("identifier: %v\n", identifier)
 	switch identifier {
 	case "note":
 		return 1
@@ -29,25 +28,26 @@ func determineEntityKind(identifier string) int {
 		return 0
 	case "nprofile":
 		return 0
+	case "nevent":
+		return 1
 	default:
 		return -1
 	}
 }
 
-func RetrieveEmbeddedEntity(hex string, identifier string, id string, relayUrl string, uuid string, writeChan chan<- []byte, eventChan <-chan string, subscriptionTracker core.SubscriptionTracker) {
+func RetrieveEmbeddedEntity(hex string, identifier string, relayUrl string, uuid string, writeChan chan<- []byte, eventChan <-chan string, subscriptionTracker core.SubscriptionTracker) {
 	subscriptionID, err := generateRandomString(16)
 	if err != nil {
 		fmt.Printf("Error generating a subscription id: %v\n", err)
 	}
 	kind := determineEntityKind(identifier)
-	fmt.Printf("entity kind: %v\n", kind)
 
 	subscriptionRequest := []interface{}{
 		"REQ",
 		subscriptionID,
 		map[string]interface{}{
-			"kinds":   []int{kind},
-			"authors": []string{hex},
+			"kinds": []int{kind},
+			"ids":   []string{hex},
 		},
 	}
 	subscriptionRequestJSON, err := json.Marshal(subscriptionRequest)
@@ -55,7 +55,7 @@ func RetrieveEmbeddedEntity(hex string, identifier string, id string, relayUrl s
 		fmt.Printf("Error marshalling embedded entity subscription request")
 	}
 	writeChan <- subscriptionRequestJSON
-	subscriptionType := "profile-entity"
+	subscriptionType := "entity"
 	subscriptionTracker.FollowsMetadataSubscription(subscriptionID, "test", "", subscriptionType, uuid)
 	closeSubscription(subscriptionID, writeChan)
 }

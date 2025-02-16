@@ -203,6 +203,7 @@ func AuthorMetadataQueue(metadataEvent []interface{}, searchKey string) {
 }
 
 func NostrEntityQueue(entityEvent []interface{}) {
-	//queueName := "nostr_queue"
+	// queueName := "nostr_queue"
+	// searchEvent := Search
 
 }

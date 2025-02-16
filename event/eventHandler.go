@@ -76,6 +76,11 @@ func PackageEvent(eventData []interface{}, userPubkey string, eventType string, 
 func delegateKindOne(eventData []interface{}, eventChan chan string, connector core.RelayConnector, relayUrl string, subscriptionTracker core.SubscriptionTracker, content map[string]interface{}) {
 	searchKey, searchKeyExists := subscriptionTracker.InSearchEvent(eventData, "1")
 	subscriptionPubkey, subscriptionExists := subscriptionTracker.InSubscriptionMapping(eventData)
+	_, _, subscriptionType, _ := subscriptionTracker.InFollowsMetadtaMapping(eventData)
+	if subscriptionType == "entity" {
+		fmt.Printf("embedded entity event data: %v\n", eventData)
+		// queue.NostrEntityQueue(eventData,)
+	}
 
 	if !searchKeyExists && !subscriptionExists {
 		queue.NotesQueue(eventData, eventChan, "")
@@ -97,7 +102,7 @@ func delegateKindZero(eventData []interface{}, eventChan chan string, relayUrl s
 	searchKey, searchKeyExists := subscriptionTracker.InSearchEvent(eventData, "0")
 	userPubkey, followsPubkey, subscriptionType, followsMetadataExists := subscriptionTracker.InFollowsMetadtaMapping(eventData)
 	fmt.Printf("subscriptionType: %v\n", subscriptionType)
-	if subscriptionType == "profile-entity" {
+	if subscriptionType == "entity" {
 		fmt.Printf("embedded entity event data: %v\n", eventData)
 		// queue.NostrEntityQueue(eventData,)
 	}
