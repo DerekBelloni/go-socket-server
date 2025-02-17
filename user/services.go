@@ -103,7 +103,7 @@ func (s *Service) retrieveEmbeddedEntity(eventId string, hex string, identifier 
 	fmt.Printf("test %v\n", 123)
 	for _, relayUrl := range s.relayUrls {
 		go func(relayUrl string) {
-			s.relayConnection.RetrieveEmbeddedEntity(eventId, hex, identifier, relayUrl, uuid, s.subscriptionTracker)
+			s.relayConnection.RetrieveEmbeddedEntity(eventId, hex, identifier, relayUrl, uuid)
 		}(relayUrl)
 	}
 }

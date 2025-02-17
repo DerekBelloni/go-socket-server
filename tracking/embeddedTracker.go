@@ -1,7 +1,6 @@
 package tracking
 
 import (
-	"fmt"
 	"sync"
 )
 
@@ -27,11 +26,9 @@ func NewEmbeddedTracker() *EmbeddedTracker {
 }
 
 func (t *EmbeddedTracker) Track(subscriptionID string, metadata EmbeddedMetadata) error {
-	// need to check it first for relay urls as well
 	t.mutex.Lock()
 	defer t.mutex.Unlock()
 	t.subscriptions[subscriptionID] = metadata
-	fmt.Printf("Embedded tracker mapping: %v\n", t.subscriptions[subscriptionID])
 	return nil
 }
 

@@ -98,11 +98,11 @@ func (rc *RelayConnection) RetrieveSearch(relayUrl string, search string, subscr
 	subscriptions.RetrieveSearchSubscription(relayUrl, search, writeChan, eventChan, subscriptionTracker, uuid, pubkey)
 }
 
-func (rc *RelayConnection) RetrieveEmbeddedEntity(eventId string, hex string, identifier string, relayUrl string, uuid string, subscriptionTracker core.SubscriptionTracker) {
+func (rc *RelayConnection) RetrieveEmbeddedEntity(eventId string, hex string, identifier string, relayUrl string, uuid string) {
 	writeChan, eventChan, err := rc.GetConnection(relayUrl)
 	if err != nil {
 		fmt.Printf("Dial error: %v, method: %v\n", err, "retrieveEmeddedEntity")
 	}
 	trackerManager := rc.relayManager.TrackerManager
-	subscriptions.RetrieveEmbeddedEntity(eventId, hex, identifier, relayUrl, uuid, writeChan, eventChan, subscriptionTracker, trackerManager)
+	subscriptions.RetrieveEmbeddedEntity(eventId, hex, identifier, relayUrl, uuid, writeChan, eventChan, trackerManager)
 }
