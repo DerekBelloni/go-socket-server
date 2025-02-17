@@ -5,6 +5,14 @@ import (
 	"sync"
 )
 
+type SubscriptionTracker interface {
+	AddSubscription()
+	LookupSubscription()
+	RemoveSubscription()
+}
+
+// specific
+
 type SubscriptionInfo struct {
 	UUID               string
 	UserPubkey         string
@@ -98,7 +106,6 @@ func (st *SearchTrackerImpl) InSubscriptionMapping(event []interface{}) (string,
 	return subscriptionPubkey, pubKeyExists
 }
 
-// I need to pivot to using this format exclusively
 func (st *SearchTrackerImpl) FollowsMetadataSubscription(subscriptionID string, followsPubkey string, userPubkey string, subscriptionType string, uuid string, identifier string, eventId string) {
 	if eventId == "" {
 		eventId = "none"

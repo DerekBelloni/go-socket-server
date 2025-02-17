@@ -3,11 +3,13 @@ package main
 import (
 	"github.com/DerekBelloni/go-socket-server/relay"
 	"github.com/DerekBelloni/go-socket-server/search"
+	"github.com/DerekBelloni/go-socket-server/tracking"
 	"github.com/DerekBelloni/go-socket-server/user"
 )
 
 func main() {
-	relayManager := relay.NewRelayManager(nil, nil)
+	trackerManager := tracking.NewTrackerManager()
+	relayManager := relay.NewRelayManager(nil, nil, trackerManager)
 	relayConnection := relay.NewRelayConnection(relayManager)
 	relayManager.Connector = relayConnection
 	searchTracker := search.NewSearchTrackerImpl()

@@ -16,6 +16,7 @@ import (
 	"github.com/DerekBelloni/go-socket-server/core"
 	"github.com/DerekBelloni/go-socket-server/event"
 	"github.com/DerekBelloni/go-socket-server/rateLimiter"
+	"github.com/DerekBelloni/go-socket-server/tracking"
 	"github.com/gorilla/websocket"
 )
 
@@ -25,33 +26,35 @@ var (
 )
 
 type RelayManager struct {
-	connections   map[string]*websocket.Conn
-	subscriptions map[string]string
-	mutex         sync.RWMutex
-	eventChans    map[string]chan string
-	readChans     map[string]chan []byte
-	writeChans    map[string]chan []byte
-	contexts      map[string]context.Context
-	cancelFuncs   map[string]context.CancelFunc
-	rateLimiters  map[string]*rateLimiter.RateLimiter
-	Connector     core.RelayConnector
-	SearchTracker core.SubscriptionTracker
-	rateLimiter   *rateLimiter.RateLimiter
+	connections    map[string]*websocket.Conn
+	subscriptions  map[string]string
+	mutex          sync.RWMutex
+	eventChans     map[string]chan string
+	readChans      map[string]chan []byte
+	writeChans     map[string]chan []byte
+	contexts       map[string]context.Context
+	cancelFuncs    map[string]context.CancelFunc
+	rateLimiters   map[string]*rateLimiter.RateLimiter
+	Connector      core.RelayConnector
+	SearchTracker  core.SubscriptionTracker
+	TrackerManager *tracking.TrackerManager
+	rateLimiter    *rateLimiter.RateLimiter
 }
 
-func NewRelayManager(connector core.RelayConnector, searchTracker core.SubscriptionTracker) *RelayManager {
+func NewRelayManager(connector core.RelayConnector, searchTracker core.SubscriptionTracker, trackerManager *tracking.TrackerManager) *RelayManager {
 	return &RelayManager{
-		connections:   make(map[string]*websocket.Conn),
-		subscriptions: make(map[string]string),
-		eventChans:    make(map[string]chan string),
-		readChans:     make(map[string]chan []byte),
-		writeChans:    make(map[string]chan []byte),
-		contexts:      make(map[string]context.Context),
-		cancelFuncs:   make(map[string]context.CancelFunc),
-		rateLimiters:  make(map[string]*rateLimiter.RateLimiter),
-		SearchTracker: searchTracker,
-		Connector:     connector,
-		rateLimiter:   rateLimiter.NewRateLimiter(2*time.Second, 5),
+		connections:    make(map[string]*websocket.Conn),
+		subscriptions:  make(map[string]string),
+		eventChans:     make(map[string]chan string),
+		readChans:      make(map[string]chan []byte),
+		writeChans:     make(map[string]chan []byte),
+		contexts:       make(map[string]context.Context),
+		cancelFuncs:    make(map[string]context.CancelFunc),
+		rateLimiters:   make(map[string]*rateLimiter.RateLimiter),
+		SearchTracker:  searchTracker,
+		TrackerManager: trackerManager,
+		Connector:      connector,
+		rateLimiter:    rateLimiter.NewRateLimiter(2*time.Second, 5),
 	}
 }
 

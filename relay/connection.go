@@ -103,5 +103,6 @@ func (rc *RelayConnection) RetrieveEmbeddedEntity(eventId string, hex string, id
 	if err != nil {
 		fmt.Printf("Dial error: %v, method: %v\n", err, "retrieveEmeddedEntity")
 	}
-	subscriptions.RetrieveEmbeddedEntity(eventId, hex, identifier, relayUrl, uuid, writeChan, eventChan, subscriptionTracker)
+	trackerManager := rc.relayManager.TrackerManager
+	subscriptions.RetrieveEmbeddedEntity(eventId, hex, identifier, relayUrl, uuid, writeChan, eventChan, subscriptionTracker, trackerManager)
 }

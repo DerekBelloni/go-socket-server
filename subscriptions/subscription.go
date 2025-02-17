@@ -9,6 +9,7 @@ import (
 
 	"github.com/DerekBelloni/go-socket-server/core"
 	"github.com/DerekBelloni/go-socket-server/data"
+	"github.com/DerekBelloni/go-socket-server/tracking"
 )
 
 func generateRandomString(length int) (string, error) {
@@ -35,9 +36,7 @@ func determineEntityKind(identifier string) int {
 	}
 }
 
-func RetrieveEmbeddedEntity(eventId string, hex string, identifier string, relayUrl string, uuid string, writeChan chan<- []byte, eventChan <-chan string, subscriptionTracker core.SubscriptionTracker) {
-	fmt.Printf("identifier: %v\n", identifier)
-
+func RetrieveEmbeddedEntity(eventId string, hex string, identifier string, relayUrl string, uuid string, writeChan chan<- []byte, eventChan <-chan string, subscriptionTracker core.SubscriptionTracker, trackerManager *tracking.TrackerManager) {
 	subscriptionID, err := generateRandomString(16)
 	if err != nil {
 		fmt.Printf("Error generating a subscription id: %v\n", err)
@@ -58,24 +57,30 @@ func RetrieveEmbeddedEntity(eventId string, hex string, identifier string, relay
 		}
 	}
 
-	fmt.Printf("subscription filters: %v\n", subscriptionFilters)
-
 	subscriptionRequest := []interface{}{
 		"REQ",
 		subscriptionID,
 		subscriptionFilters,
-		// map[string]interface{}{
-		// 	"kinds": []int{kind},
-		// 	"ids":   []string{hex},
-		// },
 	}
+
 	subscriptionRequestJSON, err := json.Marshal(subscriptionRequest)
 	if err != nil {
 		fmt.Printf("Error marshalling embedded entity subscription request")
 	}
+
 	writeChan <- subscriptionRequestJSON
-	subscriptionType := "entity"
-	subscriptionTracker.FollowsMetadataSubscription(subscriptionID, "", "", subscriptionType, uuid, identifier, eventId)
+	metadata := tracking.EmbeddedMetadata{
+		Identifier: identifier,
+		Hex:        hex,
+		UserContext: tracking.UserContext{
+			ID:   uuid,
+			Type: "embedded",
+		},
+	}
+
+	trackerManager.EmbeddedTracker.Track(subscriptionID, metadata)
+	// subscriptionType := "entity"
+	// subscriptionTracker.FollowsMetadataSubscription(subscriptionID, "", "", subscriptionType, uuid, identifier, eventId)
 	closeSubscription(subscriptionID, writeChan)
 }
 
@@ -231,7 +236,6 @@ func CreateNoteEvent(relayUrl string, newNote data.NewNote, writeChan chan<- []b
 	writeChan <- jsonBytes
 }
 
-// need to close these subscriptions for sure
 func RetrieveSearchSubscription(relayUrl string, search string, writeChan chan<- []byte, eventChan <-chan string, subscriptionTracker core.SubscriptionTracker, uuid string, pubkey string) {
 	subscriptionID, err := generateRandomString(16)
 	if err != nil {
