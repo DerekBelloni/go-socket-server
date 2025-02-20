@@ -6,6 +6,7 @@ import (
 	"github.com/DerekBelloni/go-socket-server/core"
 	"github.com/DerekBelloni/go-socket-server/data"
 	"github.com/DerekBelloni/go-socket-server/queue"
+	"github.com/DerekBelloni/go-socket-server/tracking"
 )
 
 var callbackRelays = []string{
@@ -61,7 +62,7 @@ func PackageEvent(eventData []interface{}, userPubkey string, eventType string, 
 		UserPubkey: &userPubkey,
 		UUID:       &uuid,
 	}
-	fmt.Printf("uuid in package event: %v\n", uuid)
+
 	if userPubkey != "" {
 		if eventType == "follows" {
 			message.Event = data.FollowsEvent{
@@ -73,14 +74,14 @@ func PackageEvent(eventData []interface{}, userPubkey string, eventType string, 
 	return message
 }
 
-func delegateKindOne(eventData []interface{}, eventChan chan string, connector core.RelayConnector, relayUrl string, subscriptionTracker core.SubscriptionTracker, content map[string]interface{}) {
+func delegateKindOne(eventData []interface{}, eventChan chan string, connector core.RelayConnector, relayUrl string, subscriptionTracker core.SubscriptionTracker, content map[string]interface{}, trackerManager *tracking.TrackerManager) {
+	// subscriptionMetadata, err := trackerManager.EmbeddedTracker.Lookup(eventData)
+	// if err != nil {
+	// 	fmt.Printf("Could not retrieve subscription metadata: %v\n", err)
+	// }
+
 	searchKey, searchKeyExists := subscriptionTracker.InSearchEvent(eventData, "1")
 	subscriptionPubkey, subscriptionExists := subscriptionTracker.InSubscriptionMapping(eventData)
-	_, _, subscriptionType, _, identifier, uuid, eventId := subscriptionTracker.InFollowsMetadtaMapping(eventData)
-	if subscriptionType == "entity" {
-		fmt.Printf("embedded entity event data: %v\n", eventData)
-		queue.NostrEntityQueue(eventId, eventData, identifier, uuid)
-	}
 
 	if !searchKeyExists && !subscriptionExists {
 		queue.NotesQueue(eventData, eventChan, "")
@@ -98,14 +99,16 @@ func delegateKindOne(eventData []interface{}, eventChan chan string, connector c
 	}
 }
 
-func delegateKindZero(eventData []interface{}, eventChan chan string, relayUrl string, subscriptionTracker core.SubscriptionTracker) {
-	searchKey, searchKeyExists := subscriptionTracker.InSearchEvent(eventData, "0")
-	userPubkey, followsPubkey, subscriptionType, followsMetadataExists, identifier, uuid, eventId := subscriptionTracker.InFollowsMetadtaMapping(eventData)
-	fmt.Printf("subscriptionType: %v\n", subscriptionType)
-	if subscriptionType == "entity" {
-		fmt.Printf("embedded entity event data: %v\n", eventData)
-		queue.NostrEntityQueue(eventId, eventData, identifier, uuid)
+func delegateKindZero(eventData []interface{}, eventChan chan string, relayUrl string, subscriptionTracker core.SubscriptionTracker, trackerManager *tracking.TrackerManager) {
+	subscriptionMetadata, err := trackerManager.EmbeddedTracker.Lookup(eventData)
+	if err != nil {
+		fmt.Printf("Could not retrieve subscription metadata: %v\n", err)
+	} else {
+		queue.NostrEntityQueue(eventData, subscriptionMetadata)
 	}
+
+	searchKey, searchKeyExists := subscriptionTracker.InSearchEvent(eventData, "0")
+	userPubkey, followsPubkey, subscriptionType, followsMetadataExists, _, _, _ := subscriptionTracker.InFollowsMetadtaMapping(eventData)
 
 	if !searchKeyExists && !followsMetadataExists {
 		queue.MetadataQueue(eventData, eventChan)
@@ -116,7 +119,7 @@ func delegateKindZero(eventData []interface{}, eventChan chan string, relayUrl s
 	}
 }
 
-func HandleEvent(eventData []interface{}, eventChan chan string, connector core.RelayConnector, relayUrl string, subscriptionTracker core.SubscriptionTracker) {
+func HandleEvent(eventData []interface{}, eventChan chan string, connector core.RelayConnector, relayUrl string, subscriptionTracker core.SubscriptionTracker, trackerManager *tracking.TrackerManager) {
 	content, ok := eventData[2].(map[string]interface{})
 	if !ok {
 		fmt.Println("Could not extract content from event data")
@@ -130,9 +133,9 @@ func HandleEvent(eventData []interface{}, eventChan chan string, connector core.
 
 	switch kind {
 	case 0:
-		delegateKindZero(eventData, eventChan, relayUrl, subscriptionTracker)
+		delegateKindZero(eventData, eventChan, relayUrl, subscriptionTracker, trackerManager)
 	case 1:
-		delegateKindOne(eventData, eventChan, connector, relayUrl, subscriptionTracker, content)
+		delegateKindOne(eventData, eventChan, connector, relayUrl, subscriptionTracker, content, trackerManager)
 	case 3:
 		queue.FollowListQueue(eventData, eventChan)
 	}

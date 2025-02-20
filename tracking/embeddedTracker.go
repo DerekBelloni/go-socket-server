@@ -1,12 +1,14 @@
 package tracking
 
 import (
+	"fmt"
 	"sync"
 )
 
 type EmbeddedMetadata struct {
 	Identifier  string
 	Hex         string
+	EventID     string
 	UserContext UserContext
 }
 
@@ -33,5 +35,14 @@ func (t *EmbeddedTracker) Track(subscriptionID string, metadata EmbeddedMetadata
 }
 
 func (t *EmbeddedTracker) Lookup(event []interface{}) (EmbeddedMetadata, error) {
-	return EmbeddedMetadata{}, nil
+	subscriptionId, ok := event[1].(string)
+	if !ok {
+		fmt.Println("Could not extract the subscription id from the event in embedded lookup")
+	}
+	t.mutex.Lock()
+	defer t.mutex.Unlock()
+
+	embeddedMetadata := t.subscriptions[subscriptionId]
+
+	return embeddedMetadata, nil
 }

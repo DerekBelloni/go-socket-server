@@ -72,15 +72,14 @@ func RetrieveEmbeddedEntity(eventId string, hex string, identifier string, relay
 	metadata := tracking.EmbeddedMetadata{
 		Identifier: identifier,
 		Hex:        hex,
+		EventID:    eventId,
 		UserContext: tracking.UserContext{
 			ID:   uuid,
-			Type: "embedded",
+			Type: "uuid",
 		},
 	}
 
 	trackerManager.EmbeddedTracker.Track(subscriptionID, metadata)
-	// subscriptionType := "entity"
-	// subscriptionTracker.FollowsMetadataSubscription(subscriptionID, "", "", subscriptionType, uuid, identifier, eventId)
 	closeSubscription(subscriptionID, writeChan)
 }
 

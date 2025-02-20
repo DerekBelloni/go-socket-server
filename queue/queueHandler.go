@@ -6,16 +6,15 @@ import (
 	"fmt"
 
 	"github.com/DerekBelloni/go-socket-server/data"
+	"github.com/DerekBelloni/go-socket-server/tracking"
 	"github.com/rabbitmq/amqp091-go"
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
 // these structs can go live in their own file
 type EntityEvent struct {
-	Event      []interface{}
-	EventID    string
-	Identifier string
-	UUID       string
+	Event                []interface{}
+	SubscriptionMetadata tracking.EmbeddedMetadata
 }
 
 type SearchEvent struct {
@@ -207,13 +206,11 @@ func AuthorMetadataQueue(metadataEvent []interface{}, searchKey string) {
 	setQueue(queueName, searchEventJSON)
 }
 
-func NostrEntityQueue(eventId string, entityEvent []interface{}, identifier string, uuid string) {
+func NostrEntityQueue(entityEvent []interface{}, subscriptionMetadata tracking.EmbeddedMetadata) {
 	queueName := "nostr_entities"
 	nostrEntityEvent := EntityEvent{
-		Event:      entityEvent,
-		EventID:    eventId,
-		Identifier: identifier,
-		UUID:       uuid,
+		Event:                entityEvent,
+		SubscriptionMetadata: subscriptionMetadata,
 	}
 	nostrEntityEventJSON, err := json.Marshal(nostrEntityEvent)
 	if err != nil {

@@ -61,9 +61,10 @@ func NewRelayManager(connector core.RelayConnector, searchTracker core.Subscript
 func (rm *RelayManager) GetConnection(relayUrl string) (chan []byte, chan string, error) {
 	rm.mutex.Lock()
 	_, writeChan, _, eventChan, err := rm.getExistingConnection(relayUrl)
+	connected := err == nil && rm.isConnected(relayUrl)
 	rm.mutex.Unlock()
 
-	if err == nil && rm.isConnected(relayUrl) {
+	if connected {
 		return writeChan, eventChan, nil
 	}
 
@@ -194,7 +195,6 @@ func (rm *RelayManager) readLoop(ctx context.Context, conn *websocket.Conn, rela
 	for {
 		select {
 		case <-ctx.Done():
-			rm.CloseConnection(relayUrl)
 			return
 		default:
 			messageType, reader, err := conn.NextReader()
@@ -236,11 +236,9 @@ func (rm *RelayManager) processReadChannel(ctx context.Context, readChan <-chan 
 	for {
 		select {
 		case <-ctx.Done():
-			rm.CloseConnection(relayUrl)
 			return
 		case msg, ok := <-readChan:
 			if !ok {
-				// rm.handleChannelClosue(relayUrl)
 				rm.CloseConnection(relayUrl)
 				return
 			}
@@ -266,7 +264,7 @@ func (rm *RelayManager) processMessage(relayMessage []interface{}, relayUrl stri
 
 	switch relayMsgType {
 	case "EVENT":
-		event.HandleEvent(relayMessage, eventChan, rm.Connector, relayUrl, rm.SearchTracker)
+		event.HandleEvent(relayMessage, eventChan, rm.Connector, relayUrl, rm.SearchTracker, rm.TrackerManager)
 	case "NOTICE":
 		rm.rateLimiter.Limit = rm.rateLimiter.Limit / 2
 		event.HandleNotice(relayMessage, relayUrl)
@@ -286,7 +284,6 @@ func (rm *RelayManager) writeLoop(ctx context.Context, conn *websocket.Conn, rel
 	for {
 		select {
 		case <-ctx.Done():
-			rm.CloseConnection(relayUrl)
 			return
 		case msg, ok := <-writeChan:
 			if !ok {
@@ -309,7 +306,6 @@ func (rm *RelayManager) writeLoop(ctx context.Context, conn *websocket.Conn, rel
 				return
 			}
 		}
-		// time.Sleep(100 * time.Millisecond)
 	}
 }
 
@@ -343,24 +339,20 @@ func (rm *RelayManager) CloseConnection(relayUrl string) {
 		rm.mutex.Unlock()
 		return
 	}
-	rm.mutex.Unlock()
-
-	rm.mutex.Lock()
 	if cancel, exists := rm.cancelFuncs[relayUrl]; exists {
 		cancel()
 	}
-	rm.mutex.Unlock()
-
-	rm.mutex.Lock()
 	if relayConn, exists := rm.connections[relayUrl]; exists {
 		relayConn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""), time.Now().Add(time.Second))
 		relayConn.Close()
 	}
-	rm.mutex.Unlock()
-
 	rm.deleteRelayMappings(relayUrl)
 	rm.deleteRelayChannels(relayUrl)
-	rm.attemptReconnect(relayUrl)
+	rm.mutex.Unlock()
+
+	if err := rm.attemptReconnect(relayUrl); err != nil {
+		log.Printf("Reconnect failed for relay %s: %v", relayUrl, err)
+	}
 
 	fmt.Println("finished close connection functionality")
 }
