@@ -207,6 +207,7 @@ func AuthorMetadataQueue(metadataEvent []interface{}, searchKey string) {
 }
 
 func NostrEntityQueue(entityEvent []interface{}, subscriptionMetadata tracking.EmbeddedMetadata) {
+	fmt.Printf("event: %v\n", entityEvent)
 	queueName := "nostr_entities"
 	nostrEntityEvent := EntityEvent{
 		Event:                entityEvent,

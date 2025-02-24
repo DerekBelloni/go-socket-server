@@ -37,6 +37,7 @@ func determineEntityKind(identifier string) int {
 }
 
 func RetrieveEmbeddedEntity(eventId string, hex string, identifier string, relayUrl string, uuid string, writeChan chan<- []byte, eventChan <-chan string, trackerManager *tracking.TrackerManager) {
+	fmt.Print("top of subscription")
 	subscriptionID, err := generateRandomString(16)
 	if err != nil {
 		fmt.Printf("Error generating a subscription id: %v\n", err)
@@ -69,6 +70,7 @@ func RetrieveEmbeddedEntity(eventId string, hex string, identifier string, relay
 	}
 
 	writeChan <- subscriptionRequestJSON
+	fmt.Printf("write message in subscription")
 	metadata := tracking.EmbeddedMetadata{
 		Identifier: identifier,
 		Hex:        hex,

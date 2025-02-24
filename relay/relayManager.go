@@ -59,15 +59,18 @@ func NewRelayManager(connector core.RelayConnector, searchTracker core.Subscript
 }
 
 func (rm *RelayManager) GetConnection(relayUrl string) (chan []byte, chan string, error) {
+	fmt.Println("in get connection")
 	rm.mutex.Lock()
+	fmt.Println("Mutex acquired in GetConnection")
 	_, writeChan, _, eventChan, err := rm.getExistingConnection(relayUrl)
 	connected := err == nil && rm.isConnected(relayUrl)
+	fmt.Printf("is connected %v\n", connected)
 	rm.mutex.Unlock()
 
 	if connected {
 		return writeChan, eventChan, nil
 	}
-
+	fmt.Println("Creating new connection for", relayUrl)
 	return rm.createNewConnection(relayUrl)
 }
 
@@ -286,6 +289,7 @@ func (rm *RelayManager) writeLoop(ctx context.Context, conn *websocket.Conn, rel
 		case <-ctx.Done():
 			return
 		case msg, ok := <-writeChan:
+			fmt.Println("write chan")
 			if !ok {
 				rm.CloseConnection(relayUrl)
 				return
@@ -296,9 +300,9 @@ func (rm *RelayManager) writeLoop(ctx context.Context, conn *websocket.Conn, rel
 				continue
 			}
 
-			rm.mutex.Lock()
+			// rm.mutex.Lock()
 			err := conn.WriteMessage(websocket.TextMessage, msg)
-			rm.mutex.Unlock()
+			// rm.mutex.Unlock()
 
 			if err != nil {
 				rm.CloseConnection(relayUrl)

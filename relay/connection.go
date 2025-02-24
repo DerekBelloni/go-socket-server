@@ -99,10 +99,26 @@ func (rc *RelayConnection) RetrieveSearch(relayUrl string, search string, subscr
 }
 
 func (rc *RelayConnection) RetrieveEmbeddedEntity(eventId string, hex string, identifier string, relayUrl string, uuid string) {
+	fmt.Println("in connection.go")
 	writeChan, eventChan, err := rc.GetConnection(relayUrl)
 	if err != nil {
 		fmt.Printf("Dial error: %v, method: %v\n", err, "retrieveEmeddedEntity")
+		return
+	}
+	if writeChan == nil {
+		fmt.Println("writeChan is nil")
+		return
+	}
+	if eventChan == nil {
+		fmt.Println("eventChan is nil")
+		return
 	}
 	trackerManager := rc.relayManager.TrackerManager
+	fmt.Println("Calling subscriptions.RetrieveEmbeddedEntity")
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Printf("Panic occurred: %v\n", r)
+		}
+	}()
 	subscriptions.RetrieveEmbeddedEntity(eventId, hex, identifier, relayUrl, uuid, writeChan, eventChan, trackerManager)
 }
