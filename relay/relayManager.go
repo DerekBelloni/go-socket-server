@@ -35,6 +35,7 @@ type RelayManager struct {
 	contexts       map[string]context.Context
 	cancelFuncs    map[string]context.CancelFunc
 	rateLimiters   map[string]*rateLimiter.RateLimiter
+	isOpen         map[string]bool
 	Connector      core.RelayConnector
 	SearchTracker  core.SubscriptionTracker
 	TrackerManager *tracking.TrackerManager
@@ -51,6 +52,7 @@ func NewRelayManager(connector core.RelayConnector, searchTracker core.Subscript
 		contexts:       make(map[string]context.Context),
 		cancelFuncs:    make(map[string]context.CancelFunc),
 		rateLimiters:   make(map[string]*rateLimiter.RateLimiter),
+		isOpen:         make(map[string]bool),
 		SearchTracker:  searchTracker,
 		TrackerManager: trackerManager,
 		Connector:      connector,
@@ -59,18 +61,18 @@ func NewRelayManager(connector core.RelayConnector, searchTracker core.Subscript
 }
 
 func (rm *RelayManager) GetConnection(relayUrl string) (chan []byte, chan string, error) {
-	fmt.Println("in get connection")
 	rm.mutex.Lock()
-	fmt.Println("Mutex acquired in GetConnection")
+	defer rm.mutex.Unlock()
+
 	_, writeChan, _, eventChan, err := rm.getExistingConnection(relayUrl)
+
 	connected := err == nil && rm.isConnected(relayUrl)
-	fmt.Printf("is connected %v\n", connected)
-	rm.mutex.Unlock()
 
 	if connected {
+		fmt.Println("Returning existing connection for", relayUrl)
 		return writeChan, eventChan, nil
 	}
-	fmt.Println("Creating new connection for", relayUrl)
+
 	return rm.createNewConnection(relayUrl)
 }
 
@@ -99,14 +101,13 @@ func (rm *RelayManager) createNewConnection(relayUrl string) (chan []byte, chan 
 	readChan := make(chan []byte, 1000)
 	writeChan := make(chan []byte)
 
-	rm.mutex.Lock()
 	rm.eventChans[relayUrl] = eventChan
 	rm.readChans[relayUrl] = readChan
 	rm.writeChans[relayUrl] = writeChan
 	rm.connections[relayUrl] = conn
 	rm.contexts[relayUrl] = ctx
 	rm.cancelFuncs[relayUrl] = cancel
-	rm.mutex.Unlock()
+	rm.isOpen[relayUrl] = true
 
 	go rm.writeLoop(ctx, conn, relayUrl, writeChan)
 	go rm.readLoop(ctx, conn, relayUrl, readChan)
@@ -271,7 +272,7 @@ func (rm *RelayManager) processMessage(relayMessage []interface{}, relayUrl stri
 	case "NOTICE":
 		rm.rateLimiter.Limit = rm.rateLimiter.Limit / 2
 		event.HandleNotice(relayMessage, relayUrl)
-		rm.CloseConnection(relayUrl)
+		// rm.CloseConnection(relayUrl)
 	case "EOSE":
 		event.HandleEOSE(relayMessage, relayUrl, eventChan)
 	default:
@@ -350,6 +351,7 @@ func (rm *RelayManager) CloseConnection(relayUrl string) {
 		relayConn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""), time.Now().Add(time.Second))
 		relayConn.Close()
 	}
+	rm.isOpen[relayUrl] = false
 	rm.deleteRelayMappings(relayUrl)
 	rm.deleteRelayChannels(relayUrl)
 	rm.mutex.Unlock()
@@ -391,13 +393,9 @@ func (rm *RelayManager) attemptReconnect(relayUrl string) error {
 }
 
 func (rm *RelayManager) isConnected(relayUrl string) bool {
-	rm.mutex.Lock()
-	defer rm.mutex.Unlock()
-
 	conn, connExists := rm.connections[relayUrl]
 	if !connExists {
 		return false
 	}
-
 	return conn.UnderlyingConn() != nil
 }
