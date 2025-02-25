@@ -8,7 +8,6 @@ import (
 	"io"
 	"log"
 	"math"
-	"net"
 	"net/http"
 	"sync"
 	"time"
@@ -35,7 +34,7 @@ type RelayManager struct {
 	contexts       map[string]context.Context
 	cancelFuncs    map[string]context.CancelFunc
 	rateLimiters   map[string]*rateLimiter.RateLimiter
-	isOpen         map[string]bool
+	lastPongTimes  map[string]time.Time
 	Connector      core.RelayConnector
 	SearchTracker  core.SubscriptionTracker
 	TrackerManager *tracking.TrackerManager
@@ -52,7 +51,7 @@ func NewRelayManager(connector core.RelayConnector, searchTracker core.Subscript
 		contexts:       make(map[string]context.Context),
 		cancelFuncs:    make(map[string]context.CancelFunc),
 		rateLimiters:   make(map[string]*rateLimiter.RateLimiter),
-		isOpen:         make(map[string]bool),
+		lastPongTimes:  make(map[string]time.Time),
 		SearchTracker:  searchTracker,
 		TrackerManager: trackerManager,
 		Connector:      connector,
@@ -107,7 +106,6 @@ func (rm *RelayManager) createNewConnection(relayUrl string) (chan []byte, chan 
 	rm.connections[relayUrl] = conn
 	rm.contexts[relayUrl] = ctx
 	rm.cancelFuncs[relayUrl] = cancel
-	rm.isOpen[relayUrl] = true
 
 	go rm.writeLoop(ctx, conn, relayUrl, writeChan)
 	go rm.readLoop(ctx, conn, relayUrl, readChan)
@@ -150,15 +148,20 @@ func (rm *RelayManager) pingHandler(ctx context.Context, conn *websocket.Conn, r
 	for {
 		select {
 		case <-ctx.Done():
-			rm.CloseConnection(relayUrl)
 			return
 		case <-ticker.C:
+			rm.mutex.Lock()
+			lastPong, exists := rm.lastPongTimes[relayUrl]
+			rm.mutex.Unlock()
+			if exists && time.Since(lastPong) > pongWait*2 {
+				log.Printf("No pong received for %s, closing", relayUrl)
+				rm.CloseConnection(relayUrl)
+				return
+			}
+
 			if err := conn.WriteControl(websocket.PingMessage, []byte{}, time.Now().Add(pongWait)); err != nil {
-				netErr, isNetErr := err.(net.Error)
-				if isNetErr {
-					log.Printf("Network error details for %s: timeout=%v", relayUrl, netErr.Timeout())
-				}
-				rm.handlePingError(relayUrl, err)
+				log.Printf("Ping failed for %s: %v", relayUrl, err)
+				rm.CloseConnection(relayUrl)
 				return
 			}
 		}
@@ -177,9 +180,10 @@ func (rm *RelayManager) handlePingError(relayUrl string, err error) {
 	rm.handleConnectionError(relayUrl, err, "pingHandler")
 }
 
-func (rm *RelayManager) pongHandler(conn *websocket.Conn) error {
+func (rm *RelayManager) pongHandler(conn *websocket.Conn, relayUrl string) error {
 	conn.SetPongHandler(func(string) error {
 		rm.mutex.Lock()
+		rm.lastPongTimes[relayUrl] = time.Now()
 		if err := conn.SetReadDeadline(time.Now().Add(pongWait)); err != nil {
 			log.Printf("Error setting read deadline in pong handler: %v", err)
 			rm.mutex.Unlock()
@@ -194,7 +198,7 @@ func (rm *RelayManager) pongHandler(conn *websocket.Conn) error {
 
 func (rm *RelayManager) readLoop(ctx context.Context, conn *websocket.Conn, relayUrl string, readChan chan []byte) {
 	go rm.pingHandler(ctx, conn, relayUrl)
-	rm.pongHandler(conn)
+	rm.pongHandler(conn, relayUrl)
 
 	for {
 		select {
@@ -351,7 +355,6 @@ func (rm *RelayManager) CloseConnection(relayUrl string) {
 		relayConn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""), time.Now().Add(time.Second))
 		relayConn.Close()
 	}
-	rm.isOpen[relayUrl] = false
 	rm.deleteRelayMappings(relayUrl)
 	rm.deleteRelayChannels(relayUrl)
 	rm.mutex.Unlock()
@@ -393,9 +396,13 @@ func (rm *RelayManager) attemptReconnect(relayUrl string) error {
 }
 
 func (rm *RelayManager) isConnected(relayUrl string) bool {
-	conn, connExists := rm.connections[relayUrl]
+	_, connExists := rm.connections[relayUrl]
 	if !connExists {
 		return false
 	}
-	return conn.UnderlyingConn() != nil
+	lastPong, pongExists := rm.lastPongTimes[relayUrl]
+	if !pongExists {
+		return false
+	}
+	return time.Since(lastPong) < pongWait*2
 }
