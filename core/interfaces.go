@@ -10,6 +10,7 @@ type RelayConnector interface {
 	GetFollowListMetadata(relayUrl string, userHexKey string, pubKeys []string, subscriptionTracker SubscriptionTracker)
 	GetSearchedAuthorMetadata(relayUrl string, authorPubKey string, searchKey string, subscriptionTracker SubscriptionTracker)
 	RetrieveEmbeddedEntity(eventId string, hex string, identifier string, relayUrl string, uuid string)
+	RetrieveNPubMetadata(relayUrl string, hex string, uuid string)
 	RetrieveSearch(relayUrl string, search string, subscriptionTracker SubscriptionTracker, uuid string, pubkey string)
 	SendNoteToRelay(relayUrl string, newNote data.NewNote)
 }

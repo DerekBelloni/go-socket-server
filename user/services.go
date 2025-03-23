@@ -25,6 +25,11 @@ type Service struct {
 	pubKeyUUIDLock      sync.RWMutex
 }
 
+type NpubMetadata struct {
+	UUID string `json:"npubMetadataUUID"`
+	Hex  string `json:"pubHexKey"`
+}
+
 type Entity struct {
 	Author     string   `json:"author"`
 	Hex        string   `json:"nostr_entity"`
@@ -103,6 +108,14 @@ func (s *Service) retrieveEmbeddedEntity(eventId string, hex string, identifier 
 	for _, relayUrl := range s.relayUrls {
 		go func(relayUrl string) {
 			s.relayConnection.RetrieveEmbeddedEntity(eventId, hex, identifier, relayUrl, uuid)
+		}(relayUrl)
+	}
+}
+
+func (s *Service) retrieveNpubMetadata(hex string, uuid string) {
+	for _, relayUrl := range s.relayUrls {
+		go func(relayUrl string) {
+			s.relayConnection.RetrieveNPubMetadata(relayUrl, hex, uuid)
 		}(relayUrl)
 	}
 }
@@ -325,6 +338,39 @@ func (s *Service) StartSearchQueue() {
 	<-forever
 }
 
+func (s *Service) StartNpubMetadataQueue() {
+	forever := make(chan struct{})
+	queueName := "npub_metadata"
+
+	msgs, channel, conn, err := queue.ConsumeQueue(queueName)
+	if err != nil {
+		fmt.Printf("Error consuming message from the %v queue, %v\n", queueName, err)
+	}
+
+	defer channel.Close()
+	defer conn.Close()
+
+	go func() {
+		for {
+			for d := range msgs {
+				var npubMetadata NpubMetadata
+
+				if err := json.Unmarshal(d.Body, &npubMetadata); err != nil {
+					fmt.Printf("Error unmarshalling emssage body into npub metadata struct\n")
+					continue
+				}
+
+				hex := npubMetadata.Hex
+				uuid := npubMetadata.UUID
+
+				s.retrieveNpubMetadata(hex, uuid)
+			}
+		}
+	}()
+
+	<-forever
+}
+
 func (s *Service) StartEmbeddedEntityQueue() {
 	forever := make(chan struct{})
 	queueName := "nostr_entity"
@@ -347,7 +393,6 @@ func (s *Service) StartEmbeddedEntityQueue() {
 					continue
 				}
 
-				fmt.Printf("entity: %v\n", string(d.Body))
 				hex := entityData.Hex
 				identifier := entityData.Identifier
 				eventId := entityData.EventID

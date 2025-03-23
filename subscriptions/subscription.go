@@ -236,6 +236,30 @@ func CreateNoteEvent(relayUrl string, newNote data.NewNote, writeChan chan<- []b
 	writeChan <- jsonBytes
 }
 
+func NPubMetadataSubscription(relayUrl string, hex string, uuid string, writeChan chan<- []byte, eventChan <-chan string) {
+	subscriptionID, err := generateRandomString(16)
+	if err != nil {
+		fmt.Printf("Error generating a subscription id: %v\n", err)
+	}
+
+	subscriptionRequest := []interface{}{
+		"REQ",
+		subscriptionID,
+		map[string]interface{}{
+			"kinds":   []int{0},
+			"authors": []string{hex},
+		},
+	}
+
+	subscriptionRequestJSON, err := json.Marshal(subscriptionRequest)
+	if err != nil {
+		fmt.Printf("Error marshalling subscription request: %v\n ", err)
+	}
+
+	writeChan <- subscriptionRequestJSON
+	closeSubscription(subscriptionID, writeChan)
+}
+
 func RetrieveSearchSubscription(relayUrl string, search string, writeChan chan<- []byte, eventChan <-chan string, subscriptionTracker core.SubscriptionTracker, uuid string, pubkey string) {
 	subscriptionID, err := generateRandomString(16)
 	if err != nil {

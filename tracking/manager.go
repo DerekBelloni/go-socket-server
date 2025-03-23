@@ -1,11 +1,13 @@
 package tracking
 
 type TrackerManager struct {
-	EmbeddedTracker Tracker[EmbeddedMetadata]
+	EmbeddedTracker     Tracker[EmbeddedMetadata]
+	NPubMetadataTracker Tracker[NPubMetadata]
 }
 
 func NewTrackerManager() *TrackerManager {
 	return &TrackerManager{
-		EmbeddedTracker: NewEmbeddedTracker(),
+		EmbeddedTracker:     NewEmbeddedTracker(),
+		NPubMetadataTracker: NewNPubMetadataTracker(),
 	}
 }
