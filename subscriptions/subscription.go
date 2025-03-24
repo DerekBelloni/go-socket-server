@@ -236,7 +236,7 @@ func CreateNoteEvent(relayUrl string, newNote data.NewNote, writeChan chan<- []b
 	writeChan <- jsonBytes
 }
 
-func NPubMetadataSubscription(relayUrl string, hex string, uuid string, writeChan chan<- []byte, eventChan <-chan string) {
+func NPubMetadataSubscription(relayUrl string, hex string, uuid string, writeChan chan<- []byte, eventChan <-chan string, trackerManager *tracking.TrackerManager) {
 	subscriptionID, err := generateRandomString(16)
 	if err != nil {
 		fmt.Printf("Error generating a subscription id: %v\n", err)
@@ -257,6 +257,15 @@ func NPubMetadataSubscription(relayUrl string, hex string, uuid string, writeCha
 	}
 
 	writeChan <- subscriptionRequestJSON
+
+	metadata := tracking.NPubMetadata{
+		Hex: hex,
+		UserContext: tracking.UserContext{
+			ID:   uuid,
+			Type: "uuid",
+		},
+	}
+	trackerManager.NPubMetadataTracker.Track(subscriptionID, metadata)
 	closeSubscription(subscriptionID, writeChan)
 }
 

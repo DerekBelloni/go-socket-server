@@ -6,7 +6,6 @@ import (
 )
 
 type NPubMetadata struct {
-	Identifier  string
 	Hex         string
 	UserContext UserContext
 }

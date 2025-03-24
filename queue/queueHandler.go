@@ -17,6 +17,11 @@ type EntityEvent struct {
 	SubscriptionMetadata tracking.EmbeddedMetadata
 }
 
+type NPubEvent struct {
+	Event                []interface{}
+	SubscriptionMetadata tracking.NPubMetadata
+}
+
 type SearchEvent struct {
 	Event     []interface{}
 	SearchKey string
@@ -207,7 +212,6 @@ func AuthorMetadataQueue(metadataEvent []interface{}, searchKey string) {
 }
 
 func NostrEntityQueue(entityEvent []interface{}, subscriptionMetadata tracking.EmbeddedMetadata) {
-	fmt.Printf("event: %v\n", entityEvent)
 	queueName := "nostr_entities"
 	nostrEntityEvent := EntityEvent{
 		Event:                entityEvent,
@@ -218,4 +222,18 @@ func NostrEntityQueue(entityEvent []interface{}, subscriptionMetadata tracking.E
 		fmt.Printf("Error marshalling nostr entity even into JSON: %v\n", err)
 	}
 	setQueue(queueName, nostrEntityEventJSON)
+}
+
+func NPubMetadataQueue(metadataEvent []interface{}, subscriptionMetadata tracking.NPubMetadata) {
+	queueName := "npub_result"
+	fmt.Printf("queue: %v\n", queueName)
+	npubMetadataEvent := NPubEvent{
+		Event:                metadataEvent,
+		SubscriptionMetadata: subscriptionMetadata,
+	}
+	npubMetadataEventJSON, err := json.Marshal(npubMetadataEvent)
+	if err != nil {
+		fmt.Printf("Error marshalling npub metadata event into JSON: %v\n", err)
+	}
+	setQueue(queueName, npubMetadataEventJSON)
 }

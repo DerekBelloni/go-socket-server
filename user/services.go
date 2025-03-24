@@ -362,7 +362,7 @@ func (s *Service) StartNpubMetadataQueue() {
 
 				hex := npubMetadata.Hex
 				uuid := npubMetadata.UUID
-
+				fmt.Print("banana\n")
 				s.retrieveNpubMetadata(hex, uuid)
 			}
 		}

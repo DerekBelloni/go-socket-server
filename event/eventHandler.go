@@ -100,11 +100,14 @@ func delegateKindOne(eventData []interface{}, eventChan chan string, connector c
 }
 
 func delegateKindZero(eventData []interface{}, eventChan chan string, relayUrl string, subscriptionTracker core.SubscriptionTracker, trackerManager *tracking.TrackerManager) {
-	subscriptionMetadata, err := trackerManager.EmbeddedTracker.Lookup(eventData)
-	if err != nil {
-		fmt.Printf("Could not retrieve subscription metadata: %v\n", err)
-	} else {
-		queue.NostrEntityQueue(eventData, subscriptionMetadata)
+	embeddedMetadata, err := trackerManager.EmbeddedTracker.Lookup(eventData)
+	if err == nil {
+		queue.NostrEntityQueue(eventData, embeddedMetadata)
+	}
+
+	npubMetadata, err := trackerManager.NPubMetadataTracker.Lookup(eventData)
+	if err == nil {
+		queue.NPubMetadataQueue(eventData, npubMetadata)
 	}
 
 	searchKey, searchKeyExists := subscriptionTracker.InSearchEvent(eventData, "0")

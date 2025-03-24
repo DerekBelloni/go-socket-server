@@ -95,7 +95,9 @@ func (rc *RelayConnection) RetrieveNPubMetadata(relayUrl string, hex string, uui
 	if err != nil {
 		fmt.Printf("Dial error: %v, method: %v:\n", err, "retrieveSearch")
 	}
-	subscriptions.NPubMetadataSubscription(relayUrl, hex, uuid, writeChan, eventChan)
+	trackerManager := rc.relayManager.TrackerManager
+
+	subscriptions.NPubMetadataSubscription(relayUrl, hex, uuid, writeChan, eventChan, trackerManager)
 }
 
 func (rc *RelayConnection) RetrieveSearch(relayUrl string, search string, subscriptionTracker core.SubscriptionTracker, uuid string, pubkey string) {
